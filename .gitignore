@@ -1,0 +1,10 @@
+# Compiled objects
+*/Debug/*
+*/Release/*
+
+# Unncessary project files
+*.db
+*.opendb
+*.user
+.suo
+.vs/*
