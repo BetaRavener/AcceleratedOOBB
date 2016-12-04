@@ -72,6 +72,9 @@ void Scene::init() {
 	auto generator = Generator(glm::vec3(-1, -1, -1), glm::vec3(1, 1, 1), glm::vec3(1, 1, 1));
 	auto pointCloudVertices = generator.CreatePointCloud(_pointCloudSize);
 
+	auto cpu = Cpu();
+	cpu.CreateOOBB(pointCloudVertices);
+
 	glBindVertexArray(_pointsVao);
 	glBindBuffer(GL_ARRAY_BUFFER, pointVBO);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3)*pointCloudVertices.size(), &pointCloudVertices[0], GL_STATIC_DRAW);

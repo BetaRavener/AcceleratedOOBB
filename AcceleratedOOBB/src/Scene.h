@@ -4,6 +4,7 @@
 
 #include "BaseApp.h"
 #include "Camera.h"
+#include "Cpu.h"
 #include <glm/matrix.hpp>
 #include <vector>
 
