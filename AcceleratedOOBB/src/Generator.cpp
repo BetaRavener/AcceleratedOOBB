@@ -6,7 +6,7 @@ Generator::Generator(glm::vec3 min, glm::vec3 max, glm::vec3 axis)
 {
 	_min = min;
 	_max = max;
-	_axis = axis;
+	_axis = glm::normalize(axis);
 	_up = glm::vec3(1, 0, 0);
 	_right = glm::cross(_axis, _up);
 	_up = glm::cross(_axis, _right);

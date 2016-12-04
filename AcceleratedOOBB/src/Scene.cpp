@@ -9,17 +9,30 @@ using namespace std;
 
 Scene::Scene() {
 	_pointCloudSize = 1000;
+	_wireframeBox = false;
+	_pointSize = 5;
 }
 
-vector<glm::vec3> Scene::boxToVertices(glm::vec3 min, glm::vec3 max)
+vector<glm::vec3> Scene::buildBoundingBox(glm::vec3 center, glm::vec3 axes[], float minimums[], float maximums[])
 {
+	auto min = glm::vec3(center);
+	auto max = glm::vec3(center);
+	float ranges[3];
+
+	for (auto i = 0; i < 3; i++)
+	{
+		min += axes[i] * minimums[i];
+		max += axes[i] * maximums[i];
+		ranges[i] = maximums[i] - minimums[i];
+	}
+
 	auto backBotLeft = glm::vec3(min);
-	auto backBotRight = glm::vec3(max.x, min.y, min.z);
-	auto backTopLeft = glm::vec3(min.x, max.y, min.z);
-	auto backTopRight = glm::vec3(max.x, max.y, min.z);
-	auto frontBotLeft = glm::vec3(min.x, min.y, max.z);
-	auto frontBotRight = glm::vec3(max.x, min.y, max.z);
-	auto frontTopLeft = glm::vec3(min.x, max.y, max.z);
+	auto backBotRight = glm::vec3(min + axes[0] * ranges[0]);
+	auto backTopLeft = glm::vec3(min + axes[1] * ranges[1]);
+	auto backTopRight = glm::vec3(max - axes[2] * ranges[2]);
+	auto frontBotLeft = glm::vec3(min + axes[2] * ranges[2]);
+	auto frontBotRight = glm::vec3(max - axes[1] * ranges[1]);
+	auto frontTopLeft = glm::vec3(max - axes[0] * ranges[0]);
 	auto frontTopRight = glm::vec3(max);
 
 	vector<glm::vec3> vertices = {
@@ -58,6 +71,7 @@ void Scene::init() {
 	auto positionAttrib = glGetAttribLocation(_program, "position");
 	_mvpMatIdx = glGetUniformLocation(_program, "mvpMat");
 	_colorIdx = glGetUniformLocation(_program, "color");
+	_pointSizeIdx = glGetUniformLocation(_program, "pointSize");
 
 	// Create Vertex Array Objects that save configuration of bindings and pointers
 	glGenVertexArrays(1, &_pointsVao);
@@ -69,7 +83,8 @@ void Scene::init() {
 	glGenBuffers(1, &boxVBO);
 
 	// Generate point cloud
-	auto generator = Generator(glm::vec3(-1, -1, -1), glm::vec3(1, 1, 1), glm::vec3(1, 1, 1));
+	auto axis = glm::normalize(glm::vec3(1, 1, 1));
+	auto generator = Generator(glm::vec3(-1, -1, -1), glm::vec3(1, 1, 1), axis);
 	auto pointCloudVertices = generator.CreatePointCloud(_pointCloudSize);
 
 	auto cpu = Cpu();
@@ -82,7 +97,13 @@ void Scene::init() {
 	glEnableVertexAttribArray(positionAttrib);
 
 	// Assemble bounding box
-	auto boxVertices = boxToVertices(glm::vec3(-1, -1, -1), glm::vec3(1, 1, 1));
+	auto ax2 = glm::vec3(1, 0, 0);
+	auto ax3 = glm::cross(axis, ax2);
+	ax2 = glm::cross(axis, ax3);
+	glm::vec3 axes[] = { axis, ax2, ax3 };
+	float mins[] = { -1.0f, -1.0f, -1.0f };
+	float maxs[] = { 1.0f, 1.0f, 1.0f };
+	auto boxVertices = buildBoundingBox(glm::vec3(0, 0, 0), axes, mins, maxs);
 
 	glBindVertexArray(_boxVao);
 	glBindBuffer(GL_ARRAY_BUFFER, boxVBO);
@@ -94,8 +115,14 @@ void Scene::init() {
 	glUseProgram(0);
 }
 
+glm::vec3 Scene::colorFromRgb(uint8_t r, uint8_t g, uint8_t b) const
+{
+	return glm::normalize(glm::vec3(r / 255.0f, g / 255.0f, b / 255.0f));
+}
+
 void Scene::draw(){
 	// Clear color and depth buffers
+	glClearColor(0.1, 0.1, 0.1, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	// Bind rendering shader program
@@ -106,8 +133,11 @@ void Scene::draw(){
 	glUniformMatrix4fv(_mvpMatIdx, 1, GL_FALSE, glm::value_ptr(mvpMat));
 
 	// Set color for points
-	auto color = glm::vec4(1, 0, 0, 1);
+	auto color = glm::vec4(colorFromRgb(39, 183, 0), 1);
 	glUniform4fv(_colorIdx, 1, glm::value_ptr(color));
+
+	// Set point size
+	glUniform1f(_pointSizeIdx, _pointSize);
 
 	// Use VAO for point cloud to render it
 	glBindVertexArray(_pointsVao);
@@ -116,7 +146,7 @@ void Scene::draw(){
 	glDrawArrays(GL_POINTS, 0, _pointCloudSize);
 
 	// Set color for bounding box
-	color = glm::vec4(0, 1, 1, 1);
+	color = glm::vec4(colorFromRgb(107, 0, 86), 1);
 	glUniform4fv(_colorIdx, 1, glm::value_ptr(color));
 
 	// Use VAO for box to render it
@@ -165,8 +195,18 @@ void Scene::onKeyPress(SDL_Keycode key, Uint16 mod){
 	switch (key) {
 		case SDLK_ESCAPE:
 			quit();
+			break;
 		case SDLK_w:
 			_wireframeBox = !_wireframeBox;
+			break;
+		case SDLK_q:
+			if (_pointSize > 1.0f)
+				_pointSize -= 1.0f;
+			break;
+		case SDLK_e:
+			if (_pointSize < 10.0f)
+				_pointSize += 1.0f;
+			break;
 		default: break;
 	}
 }
