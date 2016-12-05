@@ -4,6 +4,7 @@
 #include "glm/gtc/matrix_transform.hpp"
 #include <vector>
 #include "Generator.h"
+#include "Accelerator.h"
 
 using namespace std;
 
@@ -11,6 +12,8 @@ Scene::Scene() {
 	_pointCloudSize = 1000;
 	_wireframeBox = false;
 	_pointSize = 5;
+	//auto acc = Accelerator();
+	//acc.run();
 }
 
 vector<glm::vec3> Scene::buildBoundingBox(glm::vec3 center, glm::vec3 axes[], float minimums[], float maximums[])
@@ -55,7 +58,7 @@ void Scene::init() {
 	updateViewMatrix();
 
 	// Create shader program
-	string prefix = "../shaders/";
+	string prefix = "../Shaders/";
 	auto bgVertShader = compileShader(GL_VERTEX_SHADER, loadFile(prefix + "vert.shader"));
 	auto bgFragShader = compileShader(GL_FRAGMENT_SHADER, loadFile(prefix + "frag.shader"));
 	_program = linkShader(2, bgVertShader, bgFragShader);

@@ -16,6 +16,9 @@
     <Filter Include="Shaders">
       <UniqueIdentifier>{5ac81cb0-afa3-4d1f-b8d4-bf043fc13657}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Kernels">
+      <UniqueIdentifier>{cee54717-0365-46c5-a4ea-45f42376150f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\BaseApp.cpp">
@@ -36,6 +39,18 @@
     <ClCompile Include="src\OOBB.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\Accelerator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Helpers.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ProgramCL.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Platforms.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\frag.shader">
@@ -43,6 +58,9 @@
     </None>
     <None Include="Shaders\vert.shader">
       <Filter>Shaders</Filter>
+    </None>
+    <None Include="Kernels\matrix_add.cl">
+      <Filter>Kernels</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -62,6 +80,18 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\OOBB.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Helpers.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Accelerator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ProgramCL.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Platforms.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
