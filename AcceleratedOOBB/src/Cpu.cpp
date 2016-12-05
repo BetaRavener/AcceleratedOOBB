@@ -67,10 +67,10 @@ OOBB Cpu::CreateOOBB(std::vector<glm::vec3> & points)
 	auto min = glm::vec3();
 	auto max = glm::vec3();
 
-	auto eigenVector1 = glm::vec3(eigenVectors[0][0], eigenVectors[0][1], eigenVectors[0][2]);
-	auto eigenVector2 = glm::vec3(eigenVectors[1][0], eigenVectors[1][1], eigenVectors[1][2]);
-	auto eigenVector3 = glm::vec3(eigenVectors[2][0], eigenVectors[2][1], eigenVectors[2][2]);
-
+	auto eigenVector1 = glm::vec3(eigenVectors[0][0], eigenVectors[1][0], eigenVectors[2][0]);
+	auto eigenVector2 = glm::vec3(eigenVectors[0][1], eigenVectors[1][1], eigenVectors[2][1]);
+	//auto eigenVector3 = glm::vec3(eigenVectors[2][0], eigenVectors[2][1], eigenVectors[2][2]);
+	auto eigenVector3 = glm::cross(eigenVector1, eigenVector2);
 	for (unsigned int i = 0; i < points.size(); i++)
 	{
 		auto centeredPoint = (points[i] - centroid);
