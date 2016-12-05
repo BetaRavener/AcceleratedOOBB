@@ -1,5 +1,7 @@
 #include "Cpu.h"
 
+#define _USE_MATH_DEFINES
+#include <math.h>
 
 
 Cpu::Cpu()
@@ -17,6 +19,7 @@ OOBB Cpu::CreateOOBB(std::vector<glm::vec3> & points)
 
 	auto covarianceMatrix = ComputeCovarianceMatrix(points, centroid);
 
+	auto eigenValues = ComputeEigenValues(covarianceMatrix);
 
 	return OOBB();
 }
@@ -41,6 +44,24 @@ float** createMatrix(int rowCount, int colCount)
 		ary[i] = new float[colCount];
 
 	return ary;
+}
+
+float traceMatrix(glm::mat3x3 matrix)
+{
+	return matrix[0][0] + matrix[1][1] + matrix[2][2];
+}
+
+float determinant(glm::mat3x3 matrix)
+{
+	auto x1 = matrix[0][0] * matrix[1][1] * matrix[2][2];
+	auto x2 = matrix[1][0] * matrix[2][1] * matrix[0][2];
+	auto x3 = matrix[2][0] * matrix[0][1] * matrix[1][2];
+
+	auto y1 = matrix[0][2] * matrix[1][1] * matrix[2][0];
+	auto y2 = matrix[1][0] * matrix[0][1] * matrix[2][2];
+	auto y3 = matrix[0][0] * matrix[2][1] * matrix[1][2];
+
+	return x1 + x2 + x3 - y1 - y2 - y3;
 }
 
 glm::mat3x3 Cpu::ComputeCovarianceMatrix(std::vector<glm::vec3> & points, glm::vec3 & centroid)
@@ -93,6 +114,75 @@ glm::mat3x3 Cpu::ComputeCovarianceMatrix(std::vector<glm::vec3> & points, glm::v
 
 	return covariance;
 }
+
+glm::vec3 Cpu::ComputeEigenValues(glm::mat3x3 covariance)
+{
+	//% Given a real symmetric 3x3 matrix A, compute the eigenvalues
+
+	//	p1 = A(1, 2) ^ 2 + A(1, 3) ^ 2 + A(2, 3) ^ 2
+	//	if (p1 == 0)
+	//		% A is diagonal.
+	//		eig1 = A(1, 1)
+	//		eig2 = A(2, 2)
+	//		eig3 = A(3, 3)
+	//	else
+	//		q = trace(A) / 3
+	//		p2 = (A(1, 1) - q) ^ 2 + (A(2, 2) - q) ^ 2 + (A(3, 3) - q) ^ 2 + 2 * p1
+	//		p = sqrt(p2 / 6)
+	//		B = (1 / p) * (A - q * I) % I is the identity matrix
+	//		r = det(B) / 2
+
+	//		% In exact arithmetic for a symmetric matrix - 1 <= r <= 1
+	//		% but computation error can leave it slightly outside this range.
+	//		if (r <= -1)
+	//			phi = pi / 3
+	//			elseif(r >= 1)
+	//			phi = 0
+	//		else
+	//			phi = acos(r) / 3
+	//			end
+
+	//			% the eigenvalues satisfy eig3 <= eig2 <= eig1
+	//			eig1 = q + 2 * p * cos(phi)
+	//			eig3 = q + 2 * p * cos(phi + (2 * pi / 3))
+	//			eig2 = 3 * q - eig1 - eig3     % since trace(A) = eig1 + eig2 + eig3
+	//			end
+	auto p1 = pow(covariance[0][1], 2) + pow(covariance[0][2], 2) + pow(covariance[1][2], 2);
+
+	if (p1 == 0)
+	{
+		// Matrix is diagonal
+		return glm::vec3(covariance[0][0], covariance[1][1], covariance[2][2]);
+	}
+	else
+	{
+		auto q = traceMatrix(covariance) / 3;
+		auto p2 = pow(covariance[0][0] - q, 2) + pow(covariance[1][1] - q, 2) + pow(covariance[2][2] - q, 2) + 2 * p1;
+		auto p = sqrt(p2 / 6);
+		auto B = (1 / p) * (covariance - q * glm::mat3x3(1, 0, 0, 0, 1, 0, 0, 0, 1));
+		auto r = determinant(B) / 2;
+
+		auto phi = 0.0;
+		if (r <= -1)
+		{
+			phi = M_PI / 3;
+		}
+		else if (r >= 1)
+		{
+			phi = 0.0;
+		}
+		else
+		{
+			phi = acos(r) / 3;
+		}
+
+		auto eig1 = q + 2 * p * cos(phi);
+		auto eig3 = q + 2 * p * cos(phi + (2 * M_PI / 3));
+		auto eig2 = 3 * q - eig1 - eig3;
+		return glm::vec3(eig1, eig2, eig3);
+	}
+}
+
 
 
 

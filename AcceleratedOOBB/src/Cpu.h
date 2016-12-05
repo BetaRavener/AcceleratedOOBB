@@ -19,6 +19,7 @@ public:
 private:
 	glm::vec3 ComputeCentroid(std::vector<glm::vec3> & points);
 	glm::mat3x3 ComputeCovarianceMatrix(std::vector<glm::vec3> & points, glm::vec3 & centroid);
+	glm::vec3 ComputeEigenValues(glm::mat3x3 covariance);
 
 };
 #endif CPU_H
