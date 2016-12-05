@@ -13,13 +13,22 @@ Cpu::~Cpu()
 {
 }
 
+
 OOBB Cpu::CreateOOBB(std::vector<glm::vec3> & points)
-{
+{ 
+	/*std::vector<glm::vec3> test = std::vector<glm::vec3>();
+	test.push_back(glm::vec3(1, 2, 3));
+	test.push_back(glm::vec3(2, 2, 2));
+	test.push_back(glm::vec3(-1, 2, -3));
+	test.push_back(glm::vec3(3, 2, 3));
+	test.push_back(glm::vec3(4, 2, -3));
+	test.push_back(glm::vec3(2, 3, -3));
+*/
 	auto centroid = ComputeCentroid(points);
 
 	auto covarianceMatrix = ComputeCovarianceMatrix(points, centroid);
 
-	auto eigenValues = ComputeEigenValues(covarianceMatrix);
+	//auto eigenValues = ComputeEigenValues(covarianceMatrix);
 
 
 	double matrix[3][3];
@@ -34,10 +43,10 @@ OOBB Cpu::CreateOOBB(std::vector<glm::vec3> & points)
 	matrix[2][1] = covarianceMatrix[2][1];
 	matrix[2][2] = covarianceMatrix[2][2];
 
-	double vector[3][3];
+	double eigenVectors[3][3];
 	double values[3];
 
-	eigen_decomposition(matrix, vector, values);
+	eigen_decomposition(matrix, eigenVectors, values);
 
 	//auto rotationMatrix = glm::mat3x3(
 	//	vector[0][1],
@@ -53,10 +62,58 @@ OOBB Cpu::CreateOOBB(std::vector<glm::vec3> & points)
 
 	//return rotationMatrix;
 
+	// Projecting points
+	//std::vector<glm::vec3> protectedPoints(points.size());
+	auto min = glm::vec3();
+	auto max = glm::vec3();
+
+	auto eigenVector1 = glm::vec3(eigenVectors[0][0], eigenVectors[0][1], eigenVectors[0][2]);
+	auto eigenVector2 = glm::vec3(eigenVectors[1][0], eigenVectors[1][1], eigenVectors[1][2]);
+	auto eigenVector3 = glm::vec3(eigenVectors[2][0], eigenVectors[2][1], eigenVectors[2][2]);
+
+	for (unsigned int i = 0; i < points.size(); i++)
+	{
+		auto centeredPoint = (points[i] - centroid);
+
+		auto projectedPoint = glm::vec3();
+		projectedPoint.x = glm::dot(centeredPoint, eigenVector1);
+		projectedPoint.y = glm::dot(centeredPoint, eigenVector2);
+		projectedPoint.z = glm::dot(centeredPoint, eigenVector3);
+
+		if (projectedPoint.x < min.x)
+			min.x = projectedPoint.x;
+		if (projectedPoint.y < min.y)
+			min.y = projectedPoint.y;
+		if (projectedPoint.z < min.z)
+			min.z = projectedPoint.z;
+
+		if (projectedPoint.x > max.x)
+			max.x = projectedPoint.x;
+		if (projectedPoint.y > max.y)
+			max.y = projectedPoint.y;
+		if (projectedPoint.z > max.z)
+			max.z = projectedPoint.z;
+
+		//protectedPoints.push_back(projectedPoint);
+	}
+
+	// Finding Min and Max
 
 	auto result = OOBB();
 	result.center = centroid;
-	
+
+	result.maximums[0] = max.x;
+	result.maximums[1] = max.y;
+	result.maximums[2] = max.z;
+
+	result.minimums[0] = min.x;
+	result.minimums[1] = min.y;
+	result.minimums[2] = min.z;
+
+	result.axes[0] = eigenVector1;
+	result.axes[1] = eigenVector2;
+	result.axes[2] = eigenVector3;
+
 	return result;
 }
 
@@ -100,17 +157,17 @@ float determinant(glm::mat3x3 matrix)
 	return x1 + x2 + x3 - y1 - y2 - y3;
 }
 
-glm::mat3x3 Cpu::ComputeCovarianceMatrix(std::vector<glm::vec3> & points, glm::vec3 & centroid)
+glm::dmat3x3 Cpu::ComputeCovarianceMatrix(std::vector<glm::vec3> & points, glm::vec3 & centroid)
 {
 	std::vector<glm::vec3> centeredPoints(points.size());
-	
-	float** matrix = new float*[3];
-	for (unsigned int i = 0; i < 3; ++i)
-		matrix[i] = new float[points.size()];
 
-	float** matrixT = new float*[points.size()];
+	double** matrix = new double*[3];
+	for (unsigned int i = 0; i < 3; ++i)
+		matrix[i] = new double[points.size()];
+
+	double** matrixT = new double*[points.size()];
 	for (unsigned int i = 0; i < points.size(); ++i)
-		matrixT[i] = new float[3];
+		matrixT[i] = new double[3];
 	//float **matrix = createMatrix(3, points.size());
 	//float **matrixT = createMatrix(points.size(), 3);
 
@@ -126,17 +183,17 @@ glm::mat3x3 Cpu::ComputeCovarianceMatrix(std::vector<glm::vec3> & points, glm::v
 		matrixT[i][1] = centeredPoint.y;
 		matrixT[i][2] = centeredPoint.z;
 
-		centeredPoints.push_back(points[i] - centroid);
+		centeredPoints[i] = (points[i] - centroid);
 	}
 
 
-	auto covariance = glm::mat3x3(0, 0, 0, 0, 0, 0, 0, 0, 0);
+	auto covariance = glm::dmat3x3(0, 0, 0, 0, 0, 0, 0, 0, 0);
 	// Matrix multiplication
 	for (int i = 0; i < 3; ++i)
 		for (int j = 0; j < 3; ++j)
 			for (unsigned int k = 0; k < points.size(); ++k)
 			{
-				covariance[i][j] += matrix[i][k] * matrixT[k][j];
+				covariance[i][j] += matrix[i][k] * matrix[j][k];
 			}
 
 
@@ -146,7 +203,7 @@ glm::mat3x3 Cpu::ComputeCovarianceMatrix(std::vector<glm::vec3> & points, glm::v
 	// Normalization
 	for (int i = 0; i < 3; ++i)
 		for (int j = 0; j < 3; ++j)
-			covariance[i][j] /= points.size();
+			covariance[i][j] /= points.size() - 1;
 
 	return covariance;
 }

@@ -87,11 +87,11 @@ void Scene::init() {
 
 	// Generate point cloud
 	auto axis = glm::normalize(glm::vec3(1, 1, 1));
-	auto generator = Generator(glm::vec3(-1, -1, -1), glm::vec3(1, 1, 1), axis);
+	auto generator = Generator(glm::vec3(-1, -0.5, -1), glm::vec3(1, 0.5, 1), axis);
 	auto pointCloudVertices = generator.CreatePointCloud(_pointCloudSize);
 
 	auto cpu = Cpu();
-	cpu.CreateOOBB(pointCloudVertices);
+	auto oobb = cpu.CreateOOBB(pointCloudVertices);
 
 	glBindVertexArray(_pointsVao);
 	glBindBuffer(GL_ARRAY_BUFFER, pointVBO);
@@ -106,7 +106,10 @@ void Scene::init() {
 	glm::vec3 axes[] = { axis, ax2, ax3 };
 	float mins[] = { -1.0f, -1.0f, -1.0f };
 	float maxs[] = { 1.0f, 1.0f, 1.0f };
-	auto boxVertices = buildBoundingBox(glm::vec3(0, 0, 0), axes, mins, maxs);
+
+	//auto boxVertices = buildBoundingBox(glm::vec3(0, 0, 0), axes, mins, maxs);
+	auto boxVertices = buildBoundingBox(oobb.center, oobb.axes, oobb.minimums, oobb.maximums);
+
 
 	glBindVertexArray(_boxVao);
 	glBindBuffer(GL_ARRAY_BUFFER, boxVBO);

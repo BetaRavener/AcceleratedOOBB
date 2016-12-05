@@ -7,7 +7,7 @@ class OOBB
 {
 public:
 	glm::vec3 center;
-	glm::vec3 axes; 
+	glm::vec3 axes[3];
 	float minimums[3]; 
 	float maximums[3];
 	OOBB();
