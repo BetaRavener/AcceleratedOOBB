@@ -2,7 +2,7 @@
 
 #define _USE_MATH_DEFINES
 #include <math.h>
-
+#include "eig3.h"
 
 Cpu::Cpu()
 {
@@ -21,7 +21,43 @@ OOBB Cpu::CreateOOBB(std::vector<glm::vec3> & points)
 
 	auto eigenValues = ComputeEigenValues(covarianceMatrix);
 
-	return OOBB();
+
+	double matrix[3][3];
+
+	matrix[0][0] = covarianceMatrix[0][0];
+	matrix[0][1] = covarianceMatrix[0][1];
+	matrix[0][2] = covarianceMatrix[0][2];
+	matrix[1][0] = covarianceMatrix[1][0];
+	matrix[1][1] = covarianceMatrix[1][1];
+	matrix[1][2] = covarianceMatrix[1][2];
+	matrix[2][0] = covarianceMatrix[2][0];
+	matrix[2][1] = covarianceMatrix[2][1];
+	matrix[2][2] = covarianceMatrix[2][2];
+
+	double vector[3][3];
+	double values[3];
+
+	eigen_decomposition(matrix, vector, values);
+
+	//auto rotationMatrix = glm::mat3x3(
+	//	vector[0][1],
+	//	vector[0][2],
+	//	vector[0][3], 
+	//	vector[1][0], 
+	//	vector[1][1],
+	//	vector[1][2], 
+	//	vector[2][0], 
+	//	vector[2][1], 
+	//	vector[2][2]);
+
+
+	//return rotationMatrix;
+
+
+	auto result = OOBB();
+	result.center = centroid;
+	
+	return result;
 }
 
 glm::vec3 Cpu::ComputeCentroid(std::vector<glm::vec3> & points)
