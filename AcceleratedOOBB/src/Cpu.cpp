@@ -4,81 +4,51 @@
 #include <math.h>
 #include "eig3.h"
 
-Cpu::Cpu()
-{
-}
-
-
-Cpu::~Cpu()
-{
-}
-
-
 OOBB Cpu::CreateOOBB(std::vector<glm::vec3> & points)
 { 
-	/*std::vector<glm::vec3> test = std::vector<glm::vec3>();
-	test.push_back(glm::vec3(1, 2, 3));
-	test.push_back(glm::vec3(2, 2, 2));
-	test.push_back(glm::vec3(-1, 2, -3));
-	test.push_back(glm::vec3(3, 2, 3));
-	test.push_back(glm::vec3(4, 2, -3));
-	test.push_back(glm::vec3(2, 3, -3));
-*/
 	auto centroid = ComputeCentroid(points);
 
 	auto covarianceMatrix = ComputeCovarianceMatrix(points, centroid);
 
-	//auto eigenValues = ComputeEigenValues(covarianceMatrix);
+	auto eigenValues = ComputeEigenValues(covarianceMatrix);
+	auto eigenVecs = ComputeEigenVectors(covarianceMatrix, eigenValues);
 
+	// Original eigenvector / eigenvalue computation
+	//double matrix[3][3];
 
-	double matrix[3][3];
+	//matrix[0][0] = covarianceMatrix[0][0];
+	//matrix[0][1] = covarianceMatrix[0][1];
+	//matrix[0][2] = covarianceMatrix[0][2];
+	//matrix[1][0] = covarianceMatrix[1][0];
+	//matrix[1][1] = covarianceMatrix[1][1];
+	//matrix[1][2] = covarianceMatrix[1][2];
+	//matrix[2][0] = covarianceMatrix[2][0];
+	//matrix[2][1] = covarianceMatrix[2][1];
+	//matrix[2][2] = covarianceMatrix[2][2];
 
-	matrix[0][0] = covarianceMatrix[0][0];
-	matrix[0][1] = covarianceMatrix[0][1];
-	matrix[0][2] = covarianceMatrix[0][2];
-	matrix[1][0] = covarianceMatrix[1][0];
-	matrix[1][1] = covarianceMatrix[1][1];
-	matrix[1][2] = covarianceMatrix[1][2];
-	matrix[2][0] = covarianceMatrix[2][0];
-	matrix[2][1] = covarianceMatrix[2][1];
-	matrix[2][2] = covarianceMatrix[2][2];
+	//double eigenVectors[3][3];
+	//double values[3];
 
-	double eigenVectors[3][3];
-	double values[3];
-
-	eigen_decomposition(matrix, eigenVectors, values);
-
-	//auto rotationMatrix = glm::mat3x3(
-	//	vector[0][1],
-	//	vector[0][2],
-	//	vector[0][3], 
-	//	vector[1][0], 
-	//	vector[1][1],
-	//	vector[1][2], 
-	//	vector[2][0], 
-	//	vector[2][1], 
-	//	vector[2][2]);
-
-
-	//return rotationMatrix;
+	//eigen_decomposition(matrix, eigenVectors, values);
 
 	// Projecting points
 	//std::vector<glm::vec3> protectedPoints(points.size());
+	
+	//auto eigenVector1 = glm::vec3(eigenVectors[0][0], eigenVectors[1][0], eigenVectors[2][0]);
+	//auto eigenVector2 = glm::vec3(eigenVectors[0][1], eigenVectors[1][1], eigenVectors[2][1]);
+	//auto eigenVector3 = glm::vec3(eigenVectors[2][0], eigenVectors[2][1], eigenVectors[2][2]);
+	//auto eigenVector3 = glm::cross(eigenVector1, eigenVector2);
+
 	auto min = glm::vec3();
 	auto max = glm::vec3();
-
-	auto eigenVector1 = glm::vec3(eigenVectors[0][0], eigenVectors[1][0], eigenVectors[2][0]);
-	auto eigenVector2 = glm::vec3(eigenVectors[0][1], eigenVectors[1][1], eigenVectors[2][1]);
-	//auto eigenVector3 = glm::vec3(eigenVectors[2][0], eigenVectors[2][1], eigenVectors[2][2]);
-	auto eigenVector3 = glm::cross(eigenVector1, eigenVector2);
 	for (unsigned int i = 0; i < points.size(); i++)
 	{
 		auto centeredPoint = (points[i] - centroid);
 
 		auto projectedPoint = glm::vec3();
-		projectedPoint.x = glm::dot(centeredPoint, eigenVector1);
-		projectedPoint.y = glm::dot(centeredPoint, eigenVector2);
-		projectedPoint.z = glm::dot(centeredPoint, eigenVector3);
+		projectedPoint.x = glm::dot(centeredPoint, eigenVecs[0]);
+		projectedPoint.y = glm::dot(centeredPoint, eigenVecs[1]);
+		projectedPoint.z = glm::dot(centeredPoint, eigenVecs[2]);
 
 		if (projectedPoint.x < min.x)
 			min.x = projectedPoint.x;
@@ -110,9 +80,9 @@ OOBB Cpu::CreateOOBB(std::vector<glm::vec3> & points)
 	result.minimums[1] = min.y;
 	result.minimums[2] = min.z;
 
-	result.axes[0] = eigenVector1;
-	result.axes[1] = eigenVector2;
-	result.axes[2] = eigenVector3;
+	result.axes[0] = eigenVecs[0];
+	result.axes[1] = eigenVecs[1];
+	result.axes[2] = eigenVecs[2];
 
 	return result;
 }
@@ -160,7 +130,6 @@ float determinant(glm::mat3x3 matrix)
 glm::dmat3x3 Cpu::ComputeCovarianceMatrix(std::vector<glm::vec3> & points, glm::vec3 & centroid)
 {
 	std::vector<glm::vec3> centeredPoints(points.size());
-
 	double** matrix = new double*[3];
 	for (unsigned int i = 0; i < 3; ++i)
 		matrix[i] = new double[points.size()];
@@ -168,9 +137,6 @@ glm::dmat3x3 Cpu::ComputeCovarianceMatrix(std::vector<glm::vec3> & points, glm::
 	double** matrixT = new double*[points.size()];
 	for (unsigned int i = 0; i < points.size(); ++i)
 		matrixT[i] = new double[3];
-	//float **matrix = createMatrix(3, points.size());
-	//float **matrixT = createMatrix(points.size(), 3);
-
 
 	for (unsigned int i = 0; i < points.size(); i++)
 	{
@@ -189,16 +155,16 @@ glm::dmat3x3 Cpu::ComputeCovarianceMatrix(std::vector<glm::vec3> & points, glm::
 
 	auto covariance = glm::dmat3x3(0, 0, 0, 0, 0, 0, 0, 0, 0);
 	// Matrix multiplication
-	for (int i = 0; i < 3; ++i)
-		for (int j = 0; j < 3; ++j)
-			for (unsigned int k = 0; k < points.size(); ++k)
-			{
+	for (int i = 0; i < 3; ++i)	{
+		for (int j = 0; j < 3; ++j) {
+			for (unsigned int k = 0; k < points.size(); ++k){
 				covariance[i][j] += matrix[i][k] * matrix[j][k];
 			}
+		}
+	}
 
-
-	delete matrix;
-	delete matrixT;
+	delete[] matrix;
+	delete[] matrixT;
 
 	// Normalization
 	for (int i = 0; i < 3; ++i)
@@ -276,6 +242,39 @@ glm::vec3 Cpu::ComputeEigenValues(glm::mat3x3 covariance)
 	}
 }
 
+std::vector<glm::vec3> Cpu::ComputeEigenVectors(glm::mat3x3 covariance, glm::vec3 eigv)
+{
+	auto res = std::vector<glm::vec3>();
+	auto a = covariance[0][0];
+	auto b = covariance[0][1];
+	auto c = covariance[0][2];
+	auto d = covariance[1][0];
+	auto e = covariance[1][1];
+	auto f = covariance[1][2];
+	auto g = covariance[2][0];
+	auto h = covariance[2][1];
+	auto i = covariance[2][2];
 
+	auto val = eigv.x;
+	auto x13 = 1.0f;
+	auto x11 = (b*f + c*(val - e))*x13 / ((val - a) * (val - e) - b*d);
+	auto x12 = (d*x11 + f*x13) / (val - e);
+	auto vec = glm::vec3(x11, x12, x13);
+	vec = glm::normalize(vec);
+	res.push_back(vec);
+
+
+	val = eigv.y;
+	x13 = 1.0f;
+	x11 = (b*f + c*(val - e))*x13 / ((val - a) * (val - e) - b*d);
+	x12 = (d*x11 + f*x13) / (val - e);
+	vec = glm::vec3(x11, x12, x13);
+	vec = glm::normalize(vec);
+	res.push_back(vec);
+
+	res.push_back(glm::cross(res[0], res[1]));
+
+	return res;
+}
 
 
