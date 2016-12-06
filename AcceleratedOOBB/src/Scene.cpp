@@ -96,7 +96,7 @@ void Scene::init() {
 	//auto generator = Generator(glm::vec3(-1.04, -1.02, -1), glm::vec3(1.04, 1.02, 1), axis);
 	auto generator = Generator(glm::vec3(-1, -1, -1), glm::vec3(1, 1, 1), axis);
 	//auto pointCloudVertices = generator.CreatePointCloud(_pointCloudSize);
-	auto pointCloudVertices = Model::load("bunny.data", 10);
+	auto pointCloudVertices = Model::load("teapot.data", 1.0);
 	_pointCloudSize = pointCloudVertices.size();
 
 	auto cpu = Cpu();
