@@ -10,7 +10,7 @@
 using namespace std;
 
 Scene::Scene() {
-	_pointCloudSize = 1000;
+	_pointCloudSize = 10000;
 	_wireframeBox = false;
 	_pointSize = 5;
 }
@@ -92,7 +92,7 @@ void Scene::init() {
 
 	// Generate point cloud
 	auto axis = glm::normalize(glm::vec3(1, 1, 1));
-	auto generator = Generator(glm::vec3(-1, -0.5, -0.1), glm::vec3(1, 0.5, 0.1), axis);
+	auto generator = Generator(glm::vec3(-1, -1, -1), glm::vec3(1, 1, 1), axis);
 	auto pointCloudVertices = generator.CreatePointCloud(_pointCloudSize);
 
 	auto cpu = Cpu();

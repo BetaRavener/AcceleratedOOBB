@@ -137,6 +137,8 @@
     <ClCompile Include="src\Scene.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Kernels\atomic_reduce.cl" />
+    <None Include="Kernels\covariance_mat.cl" />
     <None Include="Kernels\matrix_add.cl" />
     <None Include="Shaders\frag.shader" />
     <None Include="Shaders\vert.shader" />

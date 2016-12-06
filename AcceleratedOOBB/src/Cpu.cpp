@@ -14,29 +14,29 @@ OOBB Cpu::CreateOOBB(std::vector<glm::vec3> & points)
 	auto eigenVecs = ComputeEigenVectors(covarianceMatrix, eigenValues);
 
 	// Original eigenvector / eigenvalue computation
-	//double matrix[3][3];
+	double matrix[3][3];
 
-	//matrix[0][0] = covarianceMatrix[0][0];
-	//matrix[0][1] = covarianceMatrix[0][1];
-	//matrix[0][2] = covarianceMatrix[0][2];
-	//matrix[1][0] = covarianceMatrix[1][0];
-	//matrix[1][1] = covarianceMatrix[1][1];
-	//matrix[1][2] = covarianceMatrix[1][2];
-	//matrix[2][0] = covarianceMatrix[2][0];
-	//matrix[2][1] = covarianceMatrix[2][1];
-	//matrix[2][2] = covarianceMatrix[2][2];
+	matrix[0][0] = covarianceMatrix[0][0];
+	matrix[0][1] = covarianceMatrix[0][1];
+	matrix[0][2] = covarianceMatrix[0][2];
+	matrix[1][0] = covarianceMatrix[1][0];
+	matrix[1][1] = covarianceMatrix[1][1];
+	matrix[1][2] = covarianceMatrix[1][2];
+	matrix[2][0] = covarianceMatrix[2][0];
+	matrix[2][1] = covarianceMatrix[2][1];
+	matrix[2][2] = covarianceMatrix[2][2];
 
-	//double eigenVectors[3][3];
-	//double values[3];
+	double eigenVectors[3][3];
+	double values[3];
 
-	//eigen_decomposition(matrix, eigenVectors, values);
-
-	// Projecting points
-	//std::vector<glm::vec3> protectedPoints(points.size());
+	eigen_decomposition(matrix, eigenVectors, values);
 	
-	//auto eigenVector1 = glm::vec3(eigenVectors[0][0], eigenVectors[1][0], eigenVectors[2][0]);
-	//auto eigenVector2 = glm::vec3(eigenVectors[0][1], eigenVectors[1][1], eigenVectors[2][1]);
-	//auto eigenVector3 = glm::vec3(eigenVectors[2][0], eigenVectors[2][1], eigenVectors[2][2]);
+	auto eigenVector1 = glm::vec3(eigenVectors[0][0], eigenVectors[1][0], eigenVectors[2][0]);
+	auto eigenVector2 = glm::vec3(eigenVectors[0][1], eigenVectors[1][1], eigenVectors[2][1]);
+	auto eigenVector3 = glm::cross(eigenVector1, eigenVector2);
+
+	//auto eigenVector1 = glm::vec3(eigenVecs[0][0], eigenVecs[1][0], eigenVecs[2][0]);
+	//auto eigenVector2 = glm::vec3(eigenVecs[0][1], eigenVecs[1][1], eigenVecs[2][1]);
 	//auto eigenVector3 = glm::cross(eigenVector1, eigenVector2);
 
 	auto min = glm::vec3();
@@ -46,9 +46,9 @@ OOBB Cpu::CreateOOBB(std::vector<glm::vec3> & points)
 		auto centeredPoint = (points[i] - centroid);
 
 		auto projectedPoint = glm::vec3();
-		projectedPoint.x = glm::dot(centeredPoint, eigenVecs[0]);
-		projectedPoint.y = glm::dot(centeredPoint, eigenVecs[1]);
-		projectedPoint.z = glm::dot(centeredPoint, eigenVecs[2]);
+		projectedPoint.x = glm::dot(centeredPoint, eigenVector1);
+		projectedPoint.y = glm::dot(centeredPoint, eigenVector2);
+		projectedPoint.z = glm::dot(centeredPoint, eigenVector3);
 
 		if (projectedPoint.x < min.x)
 			min.x = projectedPoint.x;
@@ -63,8 +63,6 @@ OOBB Cpu::CreateOOBB(std::vector<glm::vec3> & points)
 			max.y = projectedPoint.y;
 		if (projectedPoint.z > max.z)
 			max.z = projectedPoint.z;
-
-		//protectedPoints.push_back(projectedPoint);
 	}
 
 	// Finding Min and Max
@@ -80,9 +78,9 @@ OOBB Cpu::CreateOOBB(std::vector<glm::vec3> & points)
 	result.minimums[1] = min.y;
 	result.minimums[2] = min.z;
 
-	result.axes[0] = eigenVecs[0];
-	result.axes[1] = eigenVecs[1];
-	result.axes[2] = eigenVecs[2];
+	result.axes[0] = eigenVector1;
+	result.axes[1] = eigenVector2;
+	result.axes[2] = eigenVector3;
 
 	return result;
 }
