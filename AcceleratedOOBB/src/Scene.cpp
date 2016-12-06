@@ -5,15 +5,14 @@
 #include <vector>
 #include "Generator.h"
 #include "Accelerator.h"
+#include <thread>
 
 using namespace std;
 
 Scene::Scene() {
-	_pointCloudSize = 1000;
+	_pointCloudSize = 10000;
 	_wireframeBox = false;
 	_pointSize = 5;
-	//auto acc = Accelerator();
-	//acc.run();
 }
 
 vector<glm::vec3> Scene::buildBoundingBox(glm::vec3 center, glm::vec3 axes[], float minimums[], float maximums[])
@@ -49,6 +48,12 @@ vector<glm::vec3> Scene::buildBoundingBox(glm::vec3 center, glm::vec3 axes[], fl
 	};
 
 	return vertices;
+}
+
+void runCL()
+{
+	auto acc = Accelerator();
+	acc.run();
 }
 
 void Scene::init() {
@@ -87,7 +92,7 @@ void Scene::init() {
 
 	// Generate point cloud
 	auto axis = glm::normalize(glm::vec3(1, 1, 1));
-	auto generator = Generator(glm::vec3(-1, -0.5, -0.1), glm::vec3(1, 0.5, 0.1), axis);
+	auto generator = Generator(glm::vec3(-1, -1, -1), glm::vec3(1, 1, 1), axis);
 	auto pointCloudVertices = generator.CreatePointCloud(_pointCloudSize);
 
 	auto cpu = Cpu();
@@ -106,10 +111,9 @@ void Scene::init() {
 	glm::vec3 axes[] = { axis, ax2, ax3 };
 	float mins[] = { -1.0f, -1.0f, -1.0f };
 	float maxs[] = { 1.0f, 1.0f, 1.0f };
-
 	//auto boxVertices = buildBoundingBox(glm::vec3(0, 0, 0), axes, mins, maxs);
 	auto boxVertices = buildBoundingBox(oobb.center, oobb.axes, oobb.minimums, oobb.maximums);
-
+	//auto boxVertices = buildBoundingBox(glm::vec3(0, 0, 0), axes, mins, maxs);
 
 	glBindVertexArray(_boxVao);
 	glBindBuffer(GL_ARRAY_BUFFER, boxVBO);
@@ -119,6 +123,9 @@ void Scene::init() {
 
 	// Unbind shader program
 	glUseProgram(0);
+
+	std::thread first(runCL);
+	first.detach();
 }
 
 glm::vec3 Scene::colorFromRgb(uint8_t r, uint8_t g, uint8_t b) const
@@ -147,8 +154,7 @@ void Scene::draw(){
 
 	// Use VAO for point cloud to render it
 	glBindVertexArray(_pointsVao);
-	glPolygonMode(GL_FRONT, GL_FILL);
-	glPolygonMode(GL_BACK, GL_FILL);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	glDrawArrays(GL_POINTS, 0, _pointCloudSize);
 
 	// Set color for bounding box
@@ -160,13 +166,11 @@ void Scene::draw(){
 	if (_wireframeBox)
 	{
 		// Draw as wireframe
-		glPolygonMode(GL_FRONT, GL_LINE);
-		glPolygonMode(GL_BACK, GL_LINE);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	}
 	else
 	{
-		glPolygonMode(GL_FRONT, GL_FILL);
-		glPolygonMode(GL_BACK, GL_FILL);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	}
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 18);
 

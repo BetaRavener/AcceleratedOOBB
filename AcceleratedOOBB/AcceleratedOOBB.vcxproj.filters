@@ -65,6 +65,12 @@
     <None Include="Kernels\matrix_add.cl">
       <Filter>Kernels</Filter>
     </None>
+    <None Include="Kernels\covariance_mat.cl">
+      <Filter>Kernels</Filter>
+    </None>
+    <None Include="Kernels\atomic_reduce.cl">
+      <Filter>Kernels</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\BaseApp.h">
