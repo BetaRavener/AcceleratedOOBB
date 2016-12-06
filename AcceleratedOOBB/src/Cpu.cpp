@@ -3,6 +3,7 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include "eig3.h"
+#include <fstream>
 
 OOBB Cpu::CreateOOBB(std::vector<glm::vec3> & points)
 { 
@@ -31,13 +32,13 @@ OOBB Cpu::CreateOOBB(std::vector<glm::vec3> & points)
 
 	eigen_decomposition(matrix, eigenVectors, values);
 	
-	auto eigenVector1 = glm::vec3(eigenVectors[0][0], eigenVectors[1][0], eigenVectors[2][0]);
-	auto eigenVector2 = glm::vec3(eigenVectors[0][1], eigenVectors[1][1], eigenVectors[2][1]);
-	auto eigenVector3 = glm::cross(eigenVector1, eigenVector2);
-
-	//auto eigenVector1 = glm::vec3(eigenVecs[0][0], eigenVecs[1][0], eigenVecs[2][0]);
-	//auto eigenVector2 = glm::vec3(eigenVecs[0][1], eigenVecs[1][1], eigenVecs[2][1]);
+	//auto eigenVector1 = glm::vec3(eigenVectors[0][0], eigenVectors[1][0], eigenVectors[2][0]);
+	//auto eigenVector2 = glm::vec3(eigenVectors[0][1], eigenVectors[1][1], eigenVectors[2][1]);
 	//auto eigenVector3 = glm::cross(eigenVector1, eigenVector2);
+
+	auto eigenVector1 = eigenVecs[0];
+	auto eigenVector2 = eigenVecs[1];
+	auto eigenVector3 = eigenVecs[2];
 
 	auto min = glm::vec3();
 	auto max = glm::vec3();
@@ -81,6 +82,14 @@ OOBB Cpu::CreateOOBB(std::vector<glm::vec3> & points)
 	result.axes[0] = eigenVector1;
 	result.axes[1] = eigenVector2;
 	result.axes[2] = eigenVector3;
+
+	auto fout = std::ofstream("eigv.txt", std::ofstream::app);
+	fout << eigenValues[0] << " " << eigenValues[1] << " " << eigenValues[2] << std::endl;
+	fout << eigenVector1[0] << " " << eigenVector1[1] << " " << eigenVector1[2] << std::endl;
+	fout << eigenVector2[0] << " " << eigenVector2[1] << " " << eigenVector2[2] << std::endl;
+	fout << eigenVector3[0] << " " << eigenVector3[1] << " " << eigenVector3[2] << std::endl;
+	fout << "-----" << std::endl;
+	fout.close();
 
 	return result;
 }
@@ -270,7 +279,15 @@ std::vector<glm::vec3> Cpu::ComputeEigenVectors(glm::mat3x3 covariance, glm::vec
 	vec = glm::normalize(vec);
 	res.push_back(vec);
 
-	res.push_back(glm::cross(res[0], res[1]));
+	val = eigv.z;
+	x13 = 1.0f;
+	x11 = (b*f + c*(val - e))*x13 / ((val - a) * (val - e) - b*d);
+	x12 = (d*x11 + f*x13) / (val - e);
+	vec = glm::vec3(x11, x12, x13);
+	vec = glm::normalize(vec);
+	res.push_back(vec);
+
+	//res.push_back(glm::cross(res[0], res[1]));
 
 	return res;
 }

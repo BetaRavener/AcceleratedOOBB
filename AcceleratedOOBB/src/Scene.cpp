@@ -6,6 +6,7 @@
 #include "Generator.h"
 #include "Accelerator.h"
 #include <thread>
+#include "Model.h"
 
 using namespace std;
 
@@ -92,8 +93,11 @@ void Scene::init() {
 
 	// Generate point cloud
 	auto axis = glm::normalize(glm::vec3(1, 1, 1));
+	//auto generator = Generator(glm::vec3(-1.04, -1.02, -1), glm::vec3(1.04, 1.02, 1), axis);
 	auto generator = Generator(glm::vec3(-1, -1, -1), glm::vec3(1, 1, 1), axis);
-	auto pointCloudVertices = generator.CreatePointCloud(_pointCloudSize);
+	//auto pointCloudVertices = generator.CreatePointCloud(_pointCloudSize);
+	auto pointCloudVertices = Model::load("bunny.data", 10);
+	_pointCloudSize = pointCloudVertices.size();
 
 	auto cpu = Cpu();
 	auto oobb = cpu.CreateOOBB(pointCloudVertices);
