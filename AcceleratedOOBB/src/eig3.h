@@ -1,6 +1,7 @@
 
 /* Eigen-decomposition for symmetric 3x3 real matrices.
-   Public domain, copied from the public domain Java library JAMA. */
+   Public domain, copied from the public domain Java library JAMA. 
+   http://barnesc.blogspot.cz/2007/02/eigenvectors-of-3x3-symmetric-matrix.html */
 
 #ifndef _eig_h
 #define _eig_h
