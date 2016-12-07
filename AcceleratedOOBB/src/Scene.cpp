@@ -6,6 +6,7 @@
 #include "Generator.h"
 #include "Accelerator.h"
 #include <thread>
+#include "Model.h"
 
 using namespace std;
 
@@ -50,10 +51,39 @@ vector<glm::vec3> Scene::buildBoundingBox(glm::vec3 center, glm::vec3 axes[], fl
 	return vertices;
 }
 
-void runCL()
+void runCL(std::vector<glm::vec3> points)
 {
 	auto acc = Accelerator();
-	acc.run();
+	acc.run2(points, 256);
+}
+
+void Scene::prepareScene(std::vector<glm::vec3>& pointCloudVertices)
+{
+	auto cpu = Cpu();
+	auto oobb = cpu.CreateOOBB(pointCloudVertices);
+
+	glUseProgram(_program);
+
+	glBindVertexArray(_pointsVao);
+	glBindBuffer(GL_ARRAY_BUFFER, _pointsVbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3)*pointCloudVertices.size(), &pointCloudVertices[0], GL_STATIC_DRAW);
+
+	// Assemble bounding box
+	auto boxVertices = buildBoundingBox(oobb.center, oobb.axes, oobb.minimums, oobb.maximums);
+
+	glBindVertexArray(_boxVao);
+	glBindBuffer(GL_ARRAY_BUFFER, _boxVbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * boxVertices.size(), &boxVertices[0], GL_STATIC_DRAW);
+
+	glUseProgram(0);
+
+	_pointCloudSize = pointCloudVertices.size();
+}
+
+void Scene::loadModel(std::string fileName, float scale)
+{
+	auto pointCloudVertices = Model::load(fileName, scale);
+	prepareScene(pointCloudVertices);
 }
 
 void Scene::init() {
@@ -86,46 +116,26 @@ void Scene::init() {
 	glGenVertexArrays(1, &_boxVao);
 
 	// Create Vector Buffer Objects that will store the vertices in GPU
-	GLuint pointVBO, boxVBO;
-	glGenBuffers(1, &pointVBO);
-	glGenBuffers(1, &boxVBO);
-
-	// Generate point cloud
-	auto axis = glm::normalize(glm::vec3(1, 1, 1));
-	auto generator = Generator(glm::vec3(-1, -1, -1), glm::vec3(1, 1, 1), axis);
-	auto pointCloudVertices = generator.CreatePointCloud(_pointCloudSize);
-
-	auto cpu = Cpu();
-	auto oobb = cpu.CreateOOBB(pointCloudVertices);
+	glGenBuffers(1, &_pointsVbo);
+	glGenBuffers(1, &_boxVbo);
 
 	glBindVertexArray(_pointsVao);
-	glBindBuffer(GL_ARRAY_BUFFER, pointVBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3)*pointCloudVertices.size(), &pointCloudVertices[0], GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, _pointsVbo);
 	glVertexAttribPointer(positionAttrib, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
 	glEnableVertexAttribArray(positionAttrib);
 
-	// Assemble bounding box
-	auto ax2 = glm::vec3(1, 0, 0);
-	auto ax3 = glm::cross(axis, ax2);
-	ax2 = glm::cross(axis, ax3);
-	glm::vec3 axes[] = { axis, ax2, ax3 };
-	float mins[] = { -1.0f, -1.0f, -1.0f };
-	float maxs[] = { 1.0f, 1.0f, 1.0f };
-	//auto boxVertices = buildBoundingBox(glm::vec3(0, 0, 0), axes, mins, maxs);
-	auto boxVertices = buildBoundingBox(oobb.center, oobb.axes, oobb.minimums, oobb.maximums);
-	//auto boxVertices = buildBoundingBox(glm::vec3(0, 0, 0), axes, mins, maxs);
-
 	glBindVertexArray(_boxVao);
-	glBindBuffer(GL_ARRAY_BUFFER, boxVBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * boxVertices.size(), &boxVertices[0], GL_STATIC_DRAW);
-	glVertexAttribPointer(positionAttrib, 3, GL_FLOAT, GL_FALSE, 0, nullptr);	
+	glBindBuffer(GL_ARRAY_BUFFER, _boxVbo);
+	glVertexAttribPointer(positionAttrib, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
 	glEnableVertexAttribArray(positionAttrib);
 
 	// Unbind shader program
 	glUseProgram(0);
 
-	std::thread first(runCL);
-	first.detach();
+	loadModel("dragon_hi.data", 10);
+
+	/*std::thread first(runCL, pointCloudVertices);
+	first.detach();*/
 }
 
 glm::vec3 Scene::colorFromRgb(uint8_t r, uint8_t g, uint8_t b) const
@@ -202,6 +212,11 @@ void Scene::onMouseMove(int dx, int dy, int x, int y)
 }
 
 void Scene::onKeyPress(SDL_Keycode key, Uint16 mod){
+	auto generatorAxis = glm::normalize(glm::vec3(1, 1, 1));
+	auto mins = glm::vec3(-1, -0.8, -0.6);
+	auto maxs = glm::vec3(1, 0.8, 0.6);
+	auto generator = Generator(mins, maxs, generatorAxis);
+
 	switch (key) {
 		case SDLK_ESCAPE:
 			quit();
@@ -217,6 +232,29 @@ void Scene::onKeyPress(SDL_Keycode key, Uint16 mod){
 			if (_pointSize < 10.0f)
 				_pointSize += 1.0f;
 			break;
+		case SDLK_1:
+			loadModel("dragon_hi.data", 10);
+			break;
+		case SDLK_2:
+			loadModel("bunny.data", 10);
+			break;
+		case SDLK_3:
+			loadModel("budha.data", 10);
+		case SDLK_4: {
+			auto pointCloudVertices = generator.CreatePointCloud(50000);
+			prepareScene(pointCloudVertices);
+			break;
+		}
+		case SDLK_5: {
+			auto pointCloudVertices = generator.CreatePointCloud(500000);
+			prepareScene(pointCloudVertices);
+			break;
+		}
+		case SDLK_6: {
+			auto pointCloudVertices = generator.CreatePointCloud(5000000);
+			prepareScene(pointCloudVertices);
+			break;
+		}
 		default: break;
 	}
 }

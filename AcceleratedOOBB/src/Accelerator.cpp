@@ -8,17 +8,13 @@
 #include "Helpers.h"
 #include "Platforms.h"
 #include <iostream>
+#include <glm/detail/type_vec3.hpp>
+#include "Cpu.h"
 
 #define SELECTED_DEVICE_TYPE CL_DEVICE_TYPE_CPU
 
 #define MATRIX_W 1024
 #define MATRIX_H 1024
-
-unsigned Accelerator::alignCount(int dataSize, int alignSize)
-{
-	return ((dataSize - 1 + alignSize) / alignSize) * alignSize;
-}
-
 
 double getEventTime(cl::Event i_event)
 {
@@ -143,7 +139,7 @@ void Accelerator::run()
 	*/
 
 	cl::NDRange local(16, 16);// = cl::NullRange;
-	cl::NDRange global(alignCount(MATRIX_W, 1024), alignCount(MATRIX_H, 1024));
+	cl::NDRange global(Helpers::alignSize(MATRIX_W, 1024), Helpers::alignSize(MATRIX_H, 1024));
 
 	// Write data to GPU
 	queue.enqueueWriteBuffer(a_buffer, false, 0, buffer_size, a_data, nullptr, &a_event);
@@ -194,3 +190,129 @@ void Accelerator::run()
 	free(device_data);
 }
 
+void Accelerator::run2(std::vector<glm::vec3> &input, int workGroupSize)
+{
+	cl_int code;
+
+	auto inputSize = input.size();
+	const auto alignedSize = Helpers::alignSize(inputSize, workGroupSize);
+
+	auto data = std::vector<float>();
+	data.resize(3 * alignedSize);
+
+	for (auto i = 0; i < 3; i++)
+		for (auto j = 0; j < alignedSize; j++)
+			data[i*alignedSize + j] = j < inputSize ? input[j][i] : 0;
+
+	// Just to check intermediate values
+	auto covIntermResult = std::vector<float>();
+	covIntermResult.resize(6 * alignedSize / workGroupSize);
+
+	Platforms::printAllInfos();
+
+	//===========================================================================================
+	/* ======================================================
+	* TODO 1. Cast
+	* ziskat gpu device
+	* =======================================================
+	*/
+	auto gpu_device = Platforms::getCpu();
+
+	// check if device is correct
+	if (Platforms::getDeviceType(gpu_device) == CL_DEVICE_TYPE_GPU)
+	{
+		std::cout << "Selected device type: Correct" << std::endl;
+	}
+	else
+	{
+		std::cout << "Selected device type: Incorrect" << std::endl;
+	}
+	std::cout << "Selected device: " << std::endl;
+	Platforms::printDeviceInfo(gpu_device);
+	std::cout << std::endl;
+
+	//===========================================================================================
+	/* ======================================================
+	* TODO 2. Cast
+	* vytvorit context a query se zapnutym profilovanim
+	* =======================================================
+	*/
+	auto context = cl::Context(gpu_device);;
+	auto queue = cl::CommandQueue(context, gpu_device, CL_QUEUE_PROFILING_ENABLE);
+
+	auto program = ProgramCL(gpu_device, context, { "../Kernels/covariance_mat.cl" });
+	auto kernel = program.getKernel("covariance_matrix");
+
+	//===========================================================================================
+	/* ======================================================
+	* TODO 3. Cast
+	* vytvorit buffery
+	* =======================================================
+	*/
+	cl_mem_flags flags = CL_MEM_READ_WRITE;
+	auto dataBufferSize = data.size() * sizeof(float);
+	auto covIntermBufferSize = 6 * alignedSize / workGroupSize * sizeof(float);
+	auto dataBuffer = cl::Buffer(context, flags, dataBufferSize);
+	auto covarianceIntermediateBuffer = cl::Buffer(context, flags, covIntermBufferSize);
+
+	//===========================================================================================
+	/* ======================================================
+	* TODO 4. Cast
+	* nastavit parametry spusteni
+	* =======================================================
+	*/
+
+	kernel.setArg(0, dataBuffer);
+	kernel.setArg(1, covarianceIntermediateBuffer);
+	kernel.setArg(2, workGroupSize, nullptr);
+	kernel.setArg(3, inputSize);
+	kernel.setArg(4, alignedSize);
+
+	double t0 = Helpers::getTime();
+	// compute results on host
+	cl::UserEvent a_event(context, &code);
+	Helpers::checkErorCl(code, "clCreateUserEvent a_event");
+	cl::UserEvent b_event(context, &code);
+	Helpers::checkErorCl(code, "clCreateUserEvent b_event");
+	cl::UserEvent kernel_event(context, &code);
+	Helpers::checkErorCl(code, "clCreateUserEvent kernel_event");
+	cl::UserEvent c_event(context, &code);
+	Helpers::checkErorCl(code, "clCreateUserEvent c_event");
+	auto t1 = Helpers::getTime();
+
+	//===========================================================================================
+	/* ======================================================
+	* TODO 5. Cast
+	* velikost skupiny, kopirovat data na gpu, spusteni kernelu, kopirovani dat zpet
+	* pro zarovnání muzete pouzit funkci iCeilTo(co, na_nasobek_ceho)
+	* jako vystupni event kopirovani nastavte prepripravene eventy a_event b_event c_event
+	* vystupni event kernelu kernel_event
+	* =======================================================
+	*/
+
+	cl::NDRange local(workGroupSize);
+	cl::NDRange global(6*alignedSize);
+
+	// Write data to GPU
+	queue.enqueueWriteBuffer(dataBuffer, false, 0, dataBufferSize, &data[0], nullptr, &a_event);
+
+	// Run kernel
+	queue.enqueueNDRangeKernel(kernel, 0, global, local, nullptr, &kernel_event);
+
+	// Read data from GPU
+	queue.enqueueReadBuffer(covarianceIntermediateBuffer, false, 0, covIntermBufferSize, &covIntermResult[0], nullptr, &c_event);
+
+	// synchronize queue
+	Helpers::checkErorCl(queue.finish(), "clFinish");
+
+	float check = 0;
+	for (auto i = 0; i < alignedSize / workGroupSize; i++)
+		check += covIntermResult[i];
+	check /= inputSize;
+
+	auto cov = Cpu::ComputeCovarianceMatrix(input, glm::vec3(0, 0, 0));
+
+	auto t2 = Helpers::getTime();
+
+	return;
+}

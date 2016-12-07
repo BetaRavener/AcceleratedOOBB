@@ -13,6 +13,11 @@
 #define CONTROL_OUTPUT false
 #endif
 
+int Helpers::alignSize(int size, int alignTo)
+{
+	return ((size - 1 + alignTo) / alignTo) * alignTo;
+}
+
 std::string Helpers::toLower(std::string s)
 {
 	std::string ret;
