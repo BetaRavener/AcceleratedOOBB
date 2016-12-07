@@ -134,7 +134,7 @@ float determinant(glm::mat3x3 matrix)
 	return x1 + x2 + x3 - y1 - y2 - y3;
 }
 
-glm::dmat3x3 Cpu::ComputeCovarianceMatrix(std::vector<glm::vec3> & points, glm::vec3 & centroid)
+glm::dmat3x3 Cpu::ComputeCovarianceMatrix(std::vector<glm::vec3> & points, glm::vec3 centroid)
 {
 	std::vector<glm::vec3> centeredPoints(points.size());
 	double** matrix = new double*[3];

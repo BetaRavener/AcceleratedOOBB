@@ -9,6 +9,7 @@
 #include "Platforms.h"
 #include <iostream>
 #include <glm/detail/type_vec3.hpp>
+#include "Cpu.h"
 
 #define SELECTED_DEVICE_TYPE CL_DEVICE_TYPE_CPU
 
@@ -303,6 +304,13 @@ void Accelerator::run2(std::vector<glm::vec3> &input, int workGroupSize)
 
 	// synchronize queue
 	Helpers::checkErorCl(queue.finish(), "clFinish");
+
+	float check = 0;
+	for (auto i = 0; i < alignedSize / workGroupSize; i++)
+		check += covIntermResult[i];
+	check /= inputSize;
+
+	auto cov = Cpu::ComputeCovarianceMatrix(input, glm::vec3(0, 0, 0));
 
 	auto t2 = Helpers::getTime();
 
