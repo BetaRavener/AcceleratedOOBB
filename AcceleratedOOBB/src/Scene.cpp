@@ -57,11 +57,21 @@ void runCL(std::vector<glm::vec3> points)
 	acc.run2(points, 256);
 }
 
+void runCL2(std::vector<glm::vec3> points, std::vector<glm::vec3> eigens)
+{
+	auto acc = Accelerator();
+	acc.run3(points, eigens, 256);
+}
+
 void Scene::prepareScene(std::vector<glm::vec3>& pointCloudVertices)
 {
 	auto cpu = Cpu();
 	auto oobb = cpu.CreateOOBB(pointCloudVertices);
+	/*auto eigens = cpu.CreateEigens(pointCloudVertices);
 
+	std::thread second(runCL2, pointCloudVertices, eigens);
+	second.detach();
+*/
 	glUseProgram(_program);
 
 	glBindVertexArray(_pointsVao);

@@ -9,6 +9,8 @@ class Accelerator
 public:
 	void run();
 	void run2(std::vector<glm::vec3> &input, int workGroupSize);
+	void run3(std::vector<glm::vec3> &input, std::vector<glm::vec3> eigens, int workGroupSize);
+
 };
 
 #endif

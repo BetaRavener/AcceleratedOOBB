@@ -46,7 +46,7 @@ void Accelerator::run()
 	* ziskat gpu device
 	* =======================================================
 	*/
-	auto gpu_device = Platforms::findPowerfulGpu();	
+	auto gpu_device = Platforms::findPowerfulGpu();
 
 	// check if device is correct
 	if (Platforms::getDeviceType(gpu_device) == CL_DEVICE_TYPE_GPU)
@@ -291,7 +291,7 @@ void Accelerator::run2(std::vector<glm::vec3> &input, int workGroupSize)
 	*/
 
 	cl::NDRange local(workGroupSize);
-	cl::NDRange global(6*alignedSize);
+	cl::NDRange global(6 * alignedSize);
 
 	// Write data to GPU
 	queue.enqueueWriteBuffer(dataBuffer, false, 0, dataBufferSize, &data[0], nullptr, &a_event);
@@ -313,6 +313,169 @@ void Accelerator::run2(std::vector<glm::vec3> &input, int workGroupSize)
 	auto cov = Cpu::ComputeCovarianceMatrix(input, glm::vec3(0, 0, 0));
 
 	auto t2 = Helpers::getTime();
+
+	return;
+}
+
+
+void Accelerator::run3(std::vector<glm::vec3> &input, std::vector<glm::vec3> eigens, int workGroupSize)
+{
+	cl_int code;
+
+	auto inputSize = input.size();
+	const auto alignedSize = Helpers::alignSize(inputSize, workGroupSize);
+	int globalCount = alignedSize;
+	int groupsCount = alignedSize / workGroupSize;
+
+	auto points = std::vector<float>();
+	points.resize(3 * alignedSize);
+
+	for (auto i = 0; i < 3; i++)
+		for (auto j = 0; j < alignedSize; j++)
+			points[i*alignedSize + j] = j < inputSize ? input[j][i] : 0;
+
+	auto eigenVector = std::vector<float>(9);
+
+	for (auto i = 0; i < 3; i++)
+	{
+		eigenVector[3 * i + 0] = eigens[i].x;
+		eigenVector[3 * i + 1] = eigens[i].y;
+		eigenVector[3 * i + 2] = eigens[i].z;
+	}
+
+	// Just to check intermediate values
+	auto minMaxResults = std::vector<float>();
+	minMaxResults.resize(6 * groupsCount);
+
+	Platforms::printAllInfos();
+
+	//===========================================================================================
+	/* ======================================================
+	* TODO 1. Cast
+	* ziskat gpu device
+	* =======================================================
+	*/
+	auto gpu_device = Platforms::getCpu();
+
+	// check if device is correct
+	if (Platforms::getDeviceType(gpu_device) == CL_DEVICE_TYPE_GPU)
+	{
+		std::cout << "Selected device type: Correct" << std::endl;
+	}
+	else
+	{
+		std::cout << "Selected device type: Incorrect" << std::endl;
+	}
+	std::cout << "Selected device: " << std::endl;
+	Platforms::printDeviceInfo(gpu_device);
+	std::cout << std::endl;
+
+	//===========================================================================================
+	/* ======================================================
+	* TODO 2. Cast
+	* vytvorit context a query se zapnutym profilovanim
+	* =======================================================
+	*/
+	auto context = cl::Context(gpu_device);;
+	auto queue = cl::CommandQueue(context, gpu_device, CL_QUEUE_PROFILING_ENABLE);
+
+	auto program = ProgramCL(gpu_device, context, { "../Kernels/projection_mat.cl" });
+	auto kernel = program.getKernel("projection_matrix");
+
+	//===========================================================================================
+	/* ======================================================
+	* TODO 3. Cast
+	* vytvorit buffery
+	* =======================================================
+	*/
+
+	cl_mem_flags flags = CL_MEM_READ_WRITE;
+	auto dataBufferSize = points.size() * sizeof(float);
+	auto dataBuffer = cl::Buffer(context, flags, dataBufferSize);
+
+	auto resultBufferSize = 6 * groupsCount * sizeof(float);
+	auto resultBuffer = cl::Buffer(context, flags, resultBufferSize);
+
+	auto eigensBufferSize = 9 * sizeof(float);
+	auto eigensBuffer = cl::Buffer(context, flags, eigensBufferSize);
+	//===========================================================================================
+	/* ======================================================
+	* TODO 4. Cast
+	* nastavit parametry spusteni
+	* =======================================================
+	*/
+
+	kernel.setArg(0, dataBuffer);
+	kernel.setArg(1, resultBuffer);
+	kernel.setArg(2, eigensBuffer);
+	kernel.setArg(3, 9, nullptr);
+	kernel.setArg(4, 6 * workGroupSize, nullptr);
+	kernel.setArg(5, inputSize);
+	kernel.setArg(6, alignedSize);
+
+	double t0 = Helpers::getTime();
+	// compute results on host
+	cl::UserEvent a_event(context, &code);
+	Helpers::checkErorCl(code, "clCreateUserEvent a_event");
+	cl::UserEvent b_event(context, &code);
+	Helpers::checkErorCl(code, "clCreateUserEvent b_event");
+	cl::UserEvent kernel_event(context, &code);
+	Helpers::checkErorCl(code, "clCreateUserEvent kernel_event");
+	cl::UserEvent c_event(context, &code);
+	Helpers::checkErorCl(code, "clCreateUserEvent c_event");
+	auto t1 = Helpers::getTime();
+
+	//===========================================================================================
+	/* ======================================================
+	* TODO 5. Cast
+	* velikost skupiny, kopirovat data na gpu, spusteni kernelu, kopirovani dat zpet
+	* pro zarovnání muzete pouzit funkci iCeilTo(co, na_nasobek_ceho)
+	* jako vystupni event kopirovani nastavte prepripravene eventy a_event b_event c_event
+	* vystupni event kernelu kernel_event
+	* =======================================================
+	*/
+
+	cl::NDRange local(workGroupSize);
+	cl::NDRange global(alignedSize);
+
+	// Write data to GPU
+	queue.enqueueWriteBuffer(dataBuffer, false, 0, dataBufferSize, &points[0], nullptr, &a_event);
+	queue.enqueueWriteBuffer(eigensBuffer, false, 0, eigensBufferSize, &eigenVector[0], nullptr, &a_event);
+
+
+	// Run kernel
+	queue.enqueueNDRangeKernel(kernel, 0, global, local, nullptr, &kernel_event);
+
+	// Read data from GPU
+	queue.enqueueReadBuffer(resultBuffer, false, 0, resultBufferSize, &minMaxResults[0], nullptr, &c_event);
+
+	// synchronize queue
+	Helpers::checkErorCl(queue.finish(), "clFinish");
+
+	auto min = glm::vec3(0, 0, 0);
+	auto max = glm::vec3(0, 0, 0);
+	// Min
+	for (auto i = 0; i < minMaxResults.size() / 2; i += 3)
+	{
+		if (minMaxResults[i] < min.x)
+			min.x = minMaxResults[i];
+		if (minMaxResults[i + 1] < min.y)
+			min.y = minMaxResults[i + 1];
+		if (minMaxResults[i + 2]  < min.z)
+			min.z = minMaxResults[i + 2];
+	}
+
+	for (auto i = minMaxResults.size() / 2; i < minMaxResults.size(); i += 3)
+	{
+		if (minMaxResults[i] > max.x)
+			max.x = minMaxResults[i];
+		if (minMaxResults[i + 1] > max.y)
+			max.y = minMaxResults[i + 1];
+		if (minMaxResults[i + 2] > max.z)
+			max.z = minMaxResults[i + 2];
+	}
+
+ 	auto t2 = Helpers::getTime();
 
 	return;
 }
