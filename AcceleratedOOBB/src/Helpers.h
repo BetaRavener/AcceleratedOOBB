@@ -7,6 +7,7 @@
 class Helpers
 {
 public:
+	static int alignSize(int size, int alignTo);
 	static std::string toLower(std::string s);
 	static void checkErorCl(cl_int code, std::string description);
 	static double getTime();

@@ -1,6 +1,8 @@
 #include "Generator.h"
-#include <glm/detail/func_geometric.inl>
+#include "Cpu.h"
 #include <random>
+
+
 
 Generator::Generator(glm::vec3 min, glm::vec3 max, glm::vec3 axis)
 {
@@ -37,6 +39,11 @@ std::vector<glm::vec3> Generator::CreatePointCloud(int count) const
 		// Add point to cloud
 		pointCloud.push_back(point);
 	}	
+
+	// Center the model into origin
+	glm::vec3 centroid = Cpu::ComputeCentroid(pointCloud);
+	for (auto i = 0; i < pointCloud.size(); i++)
+		pointCloud[i] -= centroid;
 
 	return pointCloud;
 }

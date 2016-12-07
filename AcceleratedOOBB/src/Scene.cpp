@@ -51,10 +51,10 @@ vector<glm::vec3> Scene::buildBoundingBox(glm::vec3 center, glm::vec3 axes[], fl
 	return vertices;
 }
 
-void runCL()
+void runCL(std::vector<glm::vec3> points)
 {
 	auto acc = Accelerator();
-	acc.run();
+	acc.run2(points, 256);
 }
 
 void Scene::init() {
@@ -96,7 +96,7 @@ void Scene::init() {
 	//auto generator = Generator(glm::vec3(-1.04, -1.02, -1), glm::vec3(1.04, 1.02, 1), axis);
 	auto generator = Generator(glm::vec3(-1, -1, -1), glm::vec3(1, 1, 1), axis);
 	//auto pointCloudVertices = generator.CreatePointCloud(_pointCloudSize);
-	auto pointCloudVertices = Model::load("teapot.data", 1.0);
+	auto pointCloudVertices = Model::load("bunny.data", 10.0);
 	_pointCloudSize = pointCloudVertices.size();
 
 	auto cpu = Cpu();
@@ -128,7 +128,7 @@ void Scene::init() {
 	// Unbind shader program
 	glUseProgram(0);
 
-	std::thread first(runCL);
+	std::thread first(runCL, pointCloudVertices);
 	first.detach();
 }
 

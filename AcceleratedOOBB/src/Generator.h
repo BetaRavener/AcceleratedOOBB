@@ -1,8 +1,8 @@
 #pragma once
 #ifndef GENERATOR_H
 #define GENERATOR_H
-#include <glm/detail/type_vec3.hpp>
 #include <vector>
+#include <glm/detail/type_vec3.hpp>
 
 class Generator
 {
