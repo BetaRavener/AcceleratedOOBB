@@ -67,11 +67,11 @@ void Scene::prepareScene(std::vector<glm::vec3>& pointCloudVertices)
 {
 	auto cpu = Cpu();
 	auto oobb = cpu.CreateOOBB(pointCloudVertices);
-	/*auto eigens = cpu.CreateEigens(pointCloudVertices);
+	auto eigens = cpu.CreateEigens(pointCloudVertices);
 
 	std::thread second(runCL2, pointCloudVertices, eigens);
 	second.detach();
-*/
+
 	glUseProgram(_program);
 
 	glBindVertexArray(_pointsVao);
@@ -250,6 +250,7 @@ void Scene::onKeyPress(SDL_Keycode key, Uint16 mod){
 			break;
 		case SDLK_3:
 			loadModel("budha.data", 10);
+			break;
 		case SDLK_4: {
 			auto pointCloudVertices = generator.CreatePointCloud(50000);
 			prepareScene(pointCloudVertices);
@@ -265,6 +266,9 @@ void Scene::onKeyPress(SDL_Keycode key, Uint16 mod){
 			prepareScene(pointCloudVertices);
 			break;
 		}
+		case SDLK_7:
+			loadModel("teapot.data", 2);
+			break;
 		default: break;
 	}
 }

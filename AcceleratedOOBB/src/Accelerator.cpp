@@ -323,7 +323,7 @@ void Accelerator::run3(std::vector<glm::vec3> &input, std::vector<glm::vec3> eig
 	cl_int code;
 
 	auto inputSize = input.size();
-	const auto alignedSize = Helpers::alignSize(inputSize, workGroupSize);
+	auto alignedSize = Helpers::alignSize(inputSize, workGroupSize);
 	int globalCount = alignedSize;
 	int groupsCount = alignedSize / workGroupSize;
 
@@ -382,6 +382,9 @@ void Accelerator::run3(std::vector<glm::vec3> &input, std::vector<glm::vec3> eig
 	auto program = ProgramCL(gpu_device, context, { "../Kernels/projection_mat.cl" });
 	auto kernel = program.getKernel("projection_matrix");
 
+	//auto program2 = ProgramCL(gpu_device, context, { "../Kernels/reduction_minmax.cl" });
+	auto reduce_kernel = program.getKernel("reduction_minmax");
+
 	//===========================================================================================
 	/* ======================================================
 	* TODO 3. Cast
@@ -398,6 +401,8 @@ void Accelerator::run3(std::vector<glm::vec3> &input, std::vector<glm::vec3> eig
 
 	auto eigensBufferSize = 9 * sizeof(float);
 	auto eigensBuffer = cl::Buffer(context, flags, eigensBufferSize);
+
+	auto resultBuffer2 = cl::Buffer(context, flags, resultBufferSize);
 	//===========================================================================================
 	/* ======================================================
 	* TODO 4. Cast
@@ -440,42 +445,47 @@ void Accelerator::run3(std::vector<glm::vec3> &input, std::vector<glm::vec3> eig
 
 	// Write data to GPU
 	queue.enqueueWriteBuffer(dataBuffer, false, 0, dataBufferSize, &points[0], nullptr, &a_event);
+
 	queue.enqueueWriteBuffer(eigensBuffer, false, 0, eigensBufferSize, &eigenVector[0], nullptr, &a_event);
-
-
 	// Run kernel
 	queue.enqueueNDRangeKernel(kernel, 0, global, local, nullptr, &kernel_event);
 
+	// synchronize queue
+	//Helpers::checkErorCl(queue.finish(), "clFinish");
+
+
+	inputSize = groupsCount;
+	cl::Buffer *inputBuffer = &resultBuffer;
+	cl::Buffer *result = &resultBuffer2;
+	while (groupsCount > 1)
+	{
+		alignedSize = Helpers::alignSize(inputSize, workGroupSize);
+		globalCount = alignedSize;
+		groupsCount = alignedSize / workGroupSize;
+
+		reduce_kernel.setArg(0, *inputBuffer);
+		reduce_kernel.setArg(1, *result);
+
+		reduce_kernel.setArg(2, 6 * workGroupSize, nullptr);
+		reduce_kernel.setArg(3, inputSize);
+		reduce_kernel.setArg(4, alignedSize);
+
+		queue.enqueueNDRangeKernel(reduce_kernel, 0, cl::NDRange(alignedSize), cl::NDRange(workGroupSize), nullptr, &kernel_event);
+
+		inputSize = groupsCount;
+		cl::Buffer *tmp = inputBuffer;
+		inputBuffer = result;
+		result = tmp;
+	}
+
 	// Read data from GPU
-	queue.enqueueReadBuffer(resultBuffer, false, 0, resultBufferSize, &minMaxResults[0], nullptr, &c_event);
+	queue.enqueueReadBuffer(*inputBuffer, false, 0, 6 * sizeof(float), &minMaxResults[0], nullptr, &c_event);
 
 	// synchronize queue
 	Helpers::checkErorCl(queue.finish(), "clFinish");
 
-	auto min = glm::vec3(0, 0, 0);
-	auto max = glm::vec3(0, 0, 0);
-	// Min
-	for (auto i = 0; i < minMaxResults.size() / 2; i += 3)
-	{
-		if (minMaxResults[i] < min.x)
-			min.x = minMaxResults[i];
-		if (minMaxResults[i + 1] < min.y)
-			min.y = minMaxResults[i + 1];
-		if (minMaxResults[i + 2]  < min.z)
-			min.z = minMaxResults[i + 2];
-	}
-
-	for (auto i = minMaxResults.size() / 2; i < minMaxResults.size(); i += 3)
-	{
-		if (minMaxResults[i] > max.x)
-			max.x = minMaxResults[i];
-		if (minMaxResults[i + 1] > max.y)
-			max.y = minMaxResults[i + 1];
-		if (minMaxResults[i + 2] > max.z)
-			max.z = minMaxResults[i + 2];
-	}
-
+	auto min = glm::vec3(minMaxResults[0], minMaxResults[1], minMaxResults[2]);
+	auto max = glm::vec3(minMaxResults[3], minMaxResults[4], minMaxResults[5]);
+	
  	auto t2 = Helpers::getTime();
-
-	return;
 }
