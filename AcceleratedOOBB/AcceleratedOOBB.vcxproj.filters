@@ -74,6 +74,9 @@
     <None Include="Kernels\covariance_reduce.cl">
       <Filter>Kernels</Filter>
     </None>
+    <None Include="Kernels\projection_mat.cl">
+      <Filter>Kernels</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\BaseApp.h">

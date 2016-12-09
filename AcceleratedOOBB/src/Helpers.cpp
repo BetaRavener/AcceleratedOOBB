@@ -35,7 +35,7 @@ void Helpers::checkErorCl(cl_int code, std::string description)
 		throw std::exception("" + code);
 	}
 	
-	if (CONTROL_OUTPUT) {
+		if (CONTROL_OUTPUT) {
 		std::cout << Helpers::getTime() << " OK: " << description << std::endl;
 	}
 }

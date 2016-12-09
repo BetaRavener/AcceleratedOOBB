@@ -10,8 +10,7 @@ class Accelerator
 public:
 	void run();
 	void run2(std::vector<glm::vec3> &input, int workGroupSize);
-private:
-	//void reduce(cl::Kernel kernel, cl::Buffer bufferA, cl::Buffer bufferB);
+	void run3(std::vector<glm::vec3> &input, std::vector<glm::vec3> eigens, int workGroupSize);
 };
 
 #endif
