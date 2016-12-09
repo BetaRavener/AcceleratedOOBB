@@ -80,10 +80,11 @@ void Scene::prepareScene(std::vector<glm::vec3>& pointCloudVertices)
 	_pointCloudSize = pointCloudVertices.size();
 }
 
-void Scene::loadModel(std::string fileName, float scale)
+std::vector<glm::vec3> Scene::loadModel(std::string fileName, float scale)
 {
 	auto pointCloudVertices = Model::load(fileName, scale);
 	prepareScene(pointCloudVertices);
+	return pointCloudVertices;
 }
 
 void Scene::init() {
@@ -132,10 +133,10 @@ void Scene::init() {
 	// Unbind shader program
 	glUseProgram(0);
 
-	loadModel("dragon_hi.data", 10);
+	auto pointCloudVertices = loadModel("bunny.data", 10);
 
-	/*std::thread first(runCL, pointCloudVertices);
-	first.detach();*/
+	std::thread first(runCL, pointCloudVertices);
+	first.detach();
 }
 
 glm::vec3 Scene::colorFromRgb(uint8_t r, uint8_t g, uint8_t b) const

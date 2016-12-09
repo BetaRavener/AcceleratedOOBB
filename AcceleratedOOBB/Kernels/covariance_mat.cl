@@ -1,12 +1,16 @@
-__kernel void covariance_matrix(__global float *vec, __global float *result, __local float *local_mem, int size, int align)
+__kernel void covariance_matrix(__global float *vec, __global float *result, __local float *local_mem, int size, int align, int nextAlign)
 {
 	int global_id = (int)get_global_id(0);
 	int align_id = global_id % align;
+	int align_group_id = global_id / align;
+	int group_id = (int)get_group_id(0);
 	int local_id = (int)get_local_id(0);
+	int local_w = (int)get_local_size(0);
+	int align_groups = align / local_w;
 
 	int a_offset, b_offset;
 	float a, b;
-	switch (global_id / align)
+	switch (align_group_id)
 	{
 	case 0:
 		a_offset = 0; b_offset = 0;
@@ -41,7 +45,7 @@ __kernel void covariance_matrix(__global float *vec, __global float *result, __l
 
 	barrier(CLK_LOCAL_MEM_FENCE);
 
-	for (int working_size = (int)get_local_size(0) >> 1; working_size > 0; working_size >>= 1)
+	for (int working_size = (int)local_w >> 1; working_size > 0; working_size >>= 1)
 	{
 		if (local_id < working_size)
 			local_mem[local_id] += local_mem[local_id + working_size];
@@ -50,6 +54,7 @@ __kernel void covariance_matrix(__global float *vec, __global float *result, __l
 	}
 
 	if (local_id == 0) {
-		result[get_group_id(0)] = local_mem[0];
+		//result[(align_group_id * nextAlign) + (group_id % align_groups)] = local_mem[0];
+		result[(align_group_id * nextAlign) + (group_id % align_groups)] = local_mem[0];
 	}
 }

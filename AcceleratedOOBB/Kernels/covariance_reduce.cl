@@ -17,13 +17,16 @@ _INLINE_ void atomicAdd_g_f(volatile __global float *addr, float val)
 	} while (current.u32 != expected.u32);
 }
 
-__kernel void atomic_reduce(__global float *vec, __global float *result, __local float *local_mem)
+__kernel void atomic_reduce(__global float *vec, __global float *result, __local float *local_mem, int size, int align, int nextAlign)
 {
 	int global_id = (int)get_global_id(0);
+	int align_id = global_id / align;
+	int group_id = (int)get_group_id(0);
 	int local_id = (int)get_local_id(0);
 	int local_w = (int)get_local_size(0);
+	int align_groups = align / local_w;
 
-	if (global_id >= array_size)
+	if (global_id % align >= size)
 		local_mem[local_id] = 0;
 	else
 		local_mem[local_id] = vec[global_id];
@@ -38,6 +41,7 @@ __kernel void atomic_reduce(__global float *vec, __global float *result, __local
 		barrier(CLK_LOCAL_MEM_FENCE);
 	}
 
-	if (local_id == 0)
-		atomicAdd_g_f(result, local_mem[0]);
+	if (local_id == 0) {
+		result[align_id * nextAlign + group_id % align_groups] = local_mem[0];
+	}
 }

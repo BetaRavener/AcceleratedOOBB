@@ -71,7 +71,7 @@
     <None Include="Kernels\covariance_mat.cl">
       <Filter>Kernels</Filter>
     </None>
-    <None Include="Kernels\atomic_reduce.cl">
+    <None Include="Kernels\covariance_reduce.cl">
       <Filter>Kernels</Filter>
     </None>
   </ItemGroup>

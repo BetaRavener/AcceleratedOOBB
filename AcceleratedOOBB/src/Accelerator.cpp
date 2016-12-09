@@ -1,10 +1,10 @@
+#include "ProgramCL.h"
 #include "Accelerator.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
 
-#include <CL/cl.hpp>
-#include "ProgramCL.h"
+
 #include "Helpers.h"
 #include "Platforms.h"
 #include <iostream>
@@ -190,6 +190,19 @@ void Accelerator::run()
 	free(device_data);
 }
 
+int geqPow2(int n)
+{
+	auto x = 1;
+	while (x < n)
+		x <<= 1;
+	return x;
+}
+
+int nextGroupSize(int count)
+{
+	return glm::max(glm::min(geqPow2(count),256), 32);
+}
+
 void Accelerator::run2(std::vector<glm::vec3> &input, int workGroupSize)
 {
 	cl_int code;
@@ -205,8 +218,9 @@ void Accelerator::run2(std::vector<glm::vec3> &input, int workGroupSize)
 			data[i*alignedSize + j] = j < inputSize ? input[j][i] : 0;
 
 	// Just to check intermediate values
+	auto nextWorkGroupSize = nextGroupSize(alignedSize / workGroupSize);
 	auto covIntermResult = std::vector<float>();
-	covIntermResult.resize(6 * alignedSize / workGroupSize);
+	covIntermResult.resize(6 * nextWorkGroupSize);
 
 	Platforms::printAllInfos();
 
@@ -251,9 +265,10 @@ void Accelerator::run2(std::vector<glm::vec3> &input, int workGroupSize)
 	*/
 	cl_mem_flags flags = CL_MEM_READ_WRITE;
 	auto dataBufferSize = data.size() * sizeof(float);
-	auto covIntermBufferSize = 6 * alignedSize / workGroupSize * sizeof(float);
+	auto covIntermBufferSize = covIntermResult.size() * sizeof(float);
 	auto dataBuffer = cl::Buffer(context, flags, dataBufferSize);
-	auto covarianceIntermediateBuffer = cl::Buffer(context, flags, covIntermBufferSize);
+	auto covarianceIntermediateBufferA = cl::Buffer(context, flags, covIntermBufferSize);
+	auto covarianceIntermediateBufferB = cl::Buffer(context, flags, covIntermBufferSize);
 
 	//===========================================================================================
 	/* ======================================================
@@ -263,10 +278,11 @@ void Accelerator::run2(std::vector<glm::vec3> &input, int workGroupSize)
 	*/
 
 	kernel.setArg(0, dataBuffer);
-	kernel.setArg(1, covarianceIntermediateBuffer);
+	kernel.setArg(1, covarianceIntermediateBufferA);
 	kernel.setArg(2, workGroupSize, nullptr);
 	kernel.setArg(3, inputSize);
 	kernel.setArg(4, alignedSize);
+	kernel.setArg(5, nextWorkGroupSize);
 
 	double t0 = Helpers::getTime();
 	// compute results on host
@@ -300,7 +316,7 @@ void Accelerator::run2(std::vector<glm::vec3> &input, int workGroupSize)
 	queue.enqueueNDRangeKernel(kernel, 0, global, local, nullptr, &kernel_event);
 
 	// Read data from GPU
-	queue.enqueueReadBuffer(covarianceIntermediateBuffer, false, 0, covIntermBufferSize, &covIntermResult[0], nullptr, &c_event);
+	queue.enqueueReadBuffer(covarianceIntermediateBufferA, false, 0, covIntermBufferSize, &covIntermResult[0], nullptr, &c_event);
 
 	// synchronize queue
 	Helpers::checkErorCl(queue.finish(), "clFinish");
@@ -316,3 +332,8 @@ void Accelerator::run2(std::vector<glm::vec3> &input, int workGroupSize)
 
 	return;
 }
+
+//void Accelerator::reduce(cl::Kernel kernel, cl::Buffer bufferA, cl::Buffer bufferB)
+//{
+//
+//}

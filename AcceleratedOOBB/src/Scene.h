@@ -38,7 +38,7 @@ protected:
 	void onMouseRelease(Uint8 button, int x, int y) override;
 private:
 	void prepareScene(std::vector<glm::vec3> &pointCloudVertices);
-	void loadModel(std::string fileName, float scale);
+	std::vector<glm::vec3> loadModel(std::string fileName, float scale);
 	static std::vector<glm::vec3> buildBoundingBox(glm::vec3 center, glm::vec3 axes[], float minimums[], float maximums[]);
 	glm::vec3 colorFromRgb(uint8_t r, uint8_t g, uint8_t b) const;
 	void updateProjectionMatrix();
