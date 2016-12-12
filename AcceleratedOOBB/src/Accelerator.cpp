@@ -208,7 +208,7 @@ void Accelerator::run2(std::vector<glm::vec3> &input, int workGroupSize)
 	cl_int code;
 
 	auto inputSize = input.size();
-	const auto alignedSize = Helpers::alignSize(inputSize, workGroupSize);
+	auto alignedSize = Helpers::alignSize(inputSize, workGroupSize);
 
 	auto data = std::vector<float>();
 	data.resize(3 * alignedSize);
@@ -217,8 +217,10 @@ void Accelerator::run2(std::vector<glm::vec3> &input, int workGroupSize)
 		for (auto j = 0; j < alignedSize; j++)
 			data[i*alignedSize + j] = j < inputSize ? input[j][i] : 0;
 
-	// Just to check intermediate values
-	auto nextWorkGroupSize = nextGroupSize(alignedSize / workGroupSize);
+	auto resultSize = Helpers::ceilDiv(inputSize, workGroupSize);
+	auto nextWorkGroupSize = nextGroupSize(resultSize);
+	auto nextAlignedSize = Helpers::alignSize(resultSize, nextWorkGroupSize);
+
 	auto covIntermResult = std::vector<float>();
 	covIntermResult.resize(6 * nextWorkGroupSize);
 
@@ -254,8 +256,9 @@ void Accelerator::run2(std::vector<glm::vec3> &input, int workGroupSize)
 	auto context = cl::Context(gpu_device);;
 	auto queue = cl::CommandQueue(context, gpu_device, CL_QUEUE_PROFILING_ENABLE);
 
-	auto program = ProgramCL(gpu_device, context, { "../Kernels/covariance_mat.cl" });
-	auto kernel = program.getKernel("covariance_matrix");
+	auto program = ProgramCL(gpu_device, context, { "../Kernels/covariance_mat.cl", "../Kernels/covariance_reduce.cl" });
+	auto covKernel = program.getKernel("covariance_matrix");
+	auto reductionKernel = program.getKernel("cov_reduce");
 
 	//===========================================================================================
 	/* ======================================================
@@ -277,12 +280,12 @@ void Accelerator::run2(std::vector<glm::vec3> &input, int workGroupSize)
 	* =======================================================
 	*/
 
-	kernel.setArg(0, dataBuffer);
-	kernel.setArg(1, covarianceIntermediateBufferA);
-	kernel.setArg(2, workGroupSize, nullptr);
-	kernel.setArg(3, inputSize);
-	kernel.setArg(4, alignedSize);
-	kernel.setArg(5, nextWorkGroupSize);
+	covKernel.setArg(0, dataBuffer);
+	covKernel.setArg(1, covarianceIntermediateBufferA);
+	covKernel.setArg(2, workGroupSize, nullptr);
+	covKernel.setArg(3, inputSize);
+	covKernel.setArg(4, alignedSize);
+	covKernel.setArg(5, nextAlignedSize);
 
 	double t0 = Helpers::getTime();
 	// compute results on host
@@ -313,18 +316,47 @@ void Accelerator::run2(std::vector<glm::vec3> &input, int workGroupSize)
 	queue.enqueueWriteBuffer(dataBuffer, false, 0, dataBufferSize, &data[0], nullptr, &a_event);
 
 	// Run kernel
-	queue.enqueueNDRangeKernel(kernel, 0, global, local, nullptr, &kernel_event);
+	queue.enqueueNDRangeKernel(covKernel, 0, global, local, nullptr, &kernel_event);
+
+	while (resultSize != 1)
+	{
+		inputSize = resultSize;
+		alignedSize = nextAlignedSize;
+		workGroupSize = nextWorkGroupSize;
+		auto multiplier = 1.0f;
+
+		resultSize = Helpers::ceilDiv(inputSize, workGroupSize);
+		if (resultSize > 1)
+		{
+			nextWorkGroupSize = nextGroupSize(resultSize);
+			nextAlignedSize = Helpers::alignSize(resultSize, nextWorkGroupSize);
+		}
+		else
+		{
+			nextWorkGroupSize = 0;
+			nextAlignedSize = 1;
+			multiplier = 1.0f/(input.size()-1);
+		}
+
+		local = cl::NDRange(workGroupSize);
+		global = cl::NDRange(6 * alignedSize);
+
+		reductionKernel.setArg(0, covarianceIntermediateBufferA);
+		reductionKernel.setArg(1, covarianceIntermediateBufferB);
+		reductionKernel.setArg(2, workGroupSize, nullptr);
+		reductionKernel.setArg(3, inputSize);
+		reductionKernel.setArg(4, alignedSize);
+		reductionKernel.setArg(5, nextAlignedSize);
+		reductionKernel.setArg(6, multiplier);
+
+		queue.enqueueNDRangeKernel(reductionKernel, 0, global, local, nullptr, nullptr);
+	}
 
 	// Read data from GPU
-	queue.enqueueReadBuffer(covarianceIntermediateBufferA, false, 0, covIntermBufferSize, &covIntermResult[0], nullptr, &c_event);
+	queue.enqueueReadBuffer(covarianceIntermediateBufferB, false, 0, covIntermBufferSize, &covIntermResult[0], nullptr, &c_event);
 
 	// synchronize queue
 	Helpers::checkErorCl(queue.finish(), "clFinish");
-
-	float check = 0;
-	for (auto i = 0; i < alignedSize / workGroupSize; i++)
-		check += covIntermResult[i];
-	check /= inputSize;
 
 	auto cov = Cpu::ComputeCovarianceMatrix(input, glm::vec3(0, 0, 0));
 

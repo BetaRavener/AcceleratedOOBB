@@ -169,18 +169,18 @@ float determinant(glm::mat3x3 matrix)
 	return x1 + x2 + x3 - y1 - y2 - y3;
 }
 
-glm::dmat3x3 Cpu::ComputeCovarianceMatrix(std::vector<glm::vec3> & points, glm::vec3 centroid)
+glm::mat3x3 Cpu::ComputeCovarianceMatrix(std::vector<glm::vec3> & points, glm::vec3 centroid)
 {
 	std::vector<glm::vec3> centeredPoints(points.size());
-	double** matrix = new double*[3];
-	for (unsigned int i = 0; i < 3; ++i)
-		matrix[i] = new double[points.size()];
+	auto** matrix = new float*[3];
+	for (auto i = 0; i < 3; ++i)
+		matrix[i] = new float[points.size()];
 
-	double** matrixT = new double*[points.size()];
-	for (unsigned int i = 0; i < points.size(); ++i)
-		matrixT[i] = new double[3];
+	auto** matrixT = new float*[points.size()];
+	for (auto i = 0; i < points.size(); ++i)
+		matrixT[i] = new float[3];
 
-	for (unsigned int i = 0; i < points.size(); i++)
+	for (auto i = 0; i < points.size(); i++)
 	{
 		auto centeredPoint = points[i] - centroid;
 		matrix[0][i] = centeredPoint.x;
@@ -197,9 +197,9 @@ glm::dmat3x3 Cpu::ComputeCovarianceMatrix(std::vector<glm::vec3> & points, glm::
 
 	auto covariance = glm::dmat3x3(0, 0, 0, 0, 0, 0, 0, 0, 0);
 	// Matrix multiplication
-	for (int i = 0; i < 3; ++i)	{
-		for (int j = 0; j < 3; ++j) {
-			for (unsigned int k = 0; k < points.size(); ++k){
+	for (auto i = 0; i < 3; ++i)	{
+		for (auto j = 0; j < 3; ++j) {
+			for (auto k = 0; k < points.size(); ++k){
 				covariance[i][j] += matrix[i][k] * matrix[j][k];
 			}
 		}
@@ -209,8 +209,8 @@ glm::dmat3x3 Cpu::ComputeCovarianceMatrix(std::vector<glm::vec3> & points, glm::
 	delete[] matrixT;
 
 	// Normalization
-	for (int i = 0; i < 3; ++i)
-		for (int j = 0; j < 3; ++j)
+	for (auto i = 0; i < 3; ++i)
+		for (auto j = 0; j < 3; ++j)
 			covariance[i][j] /= points.size() - 1;
 
 	return covariance;

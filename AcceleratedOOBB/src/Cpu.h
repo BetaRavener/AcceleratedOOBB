@@ -13,7 +13,7 @@ class Cpu
 public:
 	OOBB CreateOOBB(std::vector<glm::vec3> & points);
 	static glm::vec3 ComputeCentroid(std::vector<glm::vec3> & points);
-	static glm::dmat3x3 ComputeCovarianceMatrix(std::vector<glm::vec3> & points, glm::vec3 centroid);
+	static glm::mat3x3 ComputeCovarianceMatrix(std::vector<glm::vec3> & points, glm::vec3 centroid);
 	std::vector<glm::vec3> CreateEigens(std::vector<glm::vec3> & points);
 
 private:

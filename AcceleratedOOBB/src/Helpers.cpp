@@ -18,6 +18,11 @@ int Helpers::alignSize(int size, int alignTo)
 	return ((size - 1 + alignTo) / alignTo) * alignTo;
 }
 
+int Helpers::ceilDiv(int n, int divisor)
+{
+	return ((n - 1 + divisor) / divisor);
+}
+
 std::string Helpers::toLower(std::string s)
 {
 	std::string ret;

@@ -69,8 +69,8 @@ void Scene::prepareScene(std::vector<glm::vec3>& pointCloudVertices)
 	auto oobb = cpu.CreateOOBB(pointCloudVertices);
 	auto eigens = cpu.CreateEigens(pointCloudVertices);
 
-	std::thread second(runCL2, pointCloudVertices, eigens);
-	second.detach();
+	/*std::thread second(runCL2, pointCloudVertices, eigens);
+	second.detach();*/
 
 	glUseProgram(_program);
 
