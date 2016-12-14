@@ -84,19 +84,9 @@ void runCL(std::vector<glm::vec3> points)
 	acc.mainRun(points, 256);
 }
 
-void runCL2(std::vector<glm::vec3> points, std::vector<glm::vec3> eigens)
-{
-	auto acc = Accelerator();
-	//acc.run3(points, eigens, 256);
-}
-
 void Scene::prepareScene(std::vector<glm::vec3>& pointCloudVertices)
 {
 	auto cpu = Cpu();
-	
-
-	std::thread second(runCL, pointCloudVertices);
-	second.detach();
 
 	glUseProgram(_program);
 
