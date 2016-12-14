@@ -129,11 +129,16 @@
     <ClCompile Include="src\Camera.cpp" />
     <ClCompile Include="src\Cpu.cpp" />
     <ClCompile Include="src\eig3.cpp" />
+    <ClCompile Include="src\float3x3.cpp" />
     <ClCompile Include="src\Generator.cpp" />
+    <ClCompile Include="src\Line.cpp" />
     <ClCompile Include="src\Model.cpp" />
+    <ClCompile Include="src\OBB.cpp" />
     <ClCompile Include="src\OOBB.cpp" />
     <ClCompile Include="src\Helpers.cpp" />
+    <ClCompile Include="src\Plane.cpp" />
     <ClCompile Include="src\Platforms.cpp" />
+    <ClCompile Include="src\Polyhedron.cpp" />
     <ClCompile Include="src\ProgramCL.cpp" />
     <ClCompile Include="src\Scene.cpp" />
   </ItemGroup>
@@ -151,11 +156,17 @@
     <ClInclude Include="src\Camera.h" />
     <ClInclude Include="src\Cpu.h" />
     <ClInclude Include="src\eig3.h" />
+    <ClInclude Include="src\float3x3.h" />
     <ClInclude Include="src\Generator.h" />
+    <ClInclude Include="src\glmext.h" />
+    <ClInclude Include="src\Line.h" />
     <ClInclude Include="src\Model.h" />
+    <ClInclude Include="src\OBB.h" />
     <ClInclude Include="src\OOBB.h" />
     <ClInclude Include="src\Helpers.h" />
+    <ClInclude Include="src\Plane.h" />
     <ClInclude Include="src\Platforms.h" />
+    <ClInclude Include="src\Polyhedron.h" />
     <ClInclude Include="src\ProgramCL.h" />
     <ClInclude Include="src\Scene.h" />
   </ItemGroup>

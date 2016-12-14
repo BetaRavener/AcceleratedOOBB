@@ -318,6 +318,7 @@ void Accelerator::run2(std::vector<glm::vec3> &input, int workGroupSize)
 	// Run kernel
 	queue.enqueueNDRangeKernel(covKernel, 0, global, local, nullptr, &kernel_event);
 
+	//TODO: Swap buffers!!!
 	while (resultSize != 1)
 	{
 		inputSize = resultSize;
