@@ -3,14 +3,24 @@
 #define ACCELEREATOR_H
 #include <vector>
 #include <glm/detail/type_vec3.hpp>
-//#include <CL/cl.hpp>
+#include "OOBB.h"
+
+namespace cl
+{
+	class Buffer;
+	class Context;
+	class Device;
+}
 
 class Accelerator
 {
 public:
 	void run();
-	void run2(std::vector<glm::vec3> &input, int workGroupSize);
-	void run3(std::vector<glm::vec3> &input, std::vector<glm::vec3> eigens, int workGroupSize);
+	std::pair<cl::Buffer, cl::Buffer> computeCovarianceMatrix(std::vector<glm::vec3> &input, int workGroupSize, cl::Device &device, cl::Context &context);
+	std::pair<glm::vec3, glm::vec3> computeMinMax(cl::Buffer &points, cl::Buffer &eigens, int inputSize, int workGroupSize, cl::Device &device, cl::Context &context);
+	cl::Buffer computeEigenVector(cl::Buffer &covarianceMatrix, cl::Device &device, cl::Context &context);
+	OOBB mainRun(std::vector<glm::vec3> &input, int workGroupSize);
+
 };
 
 #endif

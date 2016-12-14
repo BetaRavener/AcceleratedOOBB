@@ -81,22 +81,23 @@ vector<glm::vec3> Scene::buildBoundingBox(glm::vec3 center, glm::vec3 axes[], fl
 void runCL(std::vector<glm::vec3> points)
 {
 	auto acc = Accelerator();
-	acc.run2(points, 256);
+	acc.mainRun(points, 256);
 }
 
 void runCL2(std::vector<glm::vec3> points, std::vector<glm::vec3> eigens)
 {
 	auto acc = Accelerator();
-	acc.run3(points, eigens, 256);
+	//acc.run3(points, eigens, 256);
 }
+
 
 void Scene::prepareScene(std::vector<glm::vec3>& pointCloudVertices)
 {
 	auto cpu = Cpu();
 	
 
-	/*std::thread second(runCL2, pointCloudVertices, eigens);
-	second.detach();*/
+	std::thread second(runCL, pointCloudVertices);
+	second.detach();
 
 	glUseProgram(_program);
 

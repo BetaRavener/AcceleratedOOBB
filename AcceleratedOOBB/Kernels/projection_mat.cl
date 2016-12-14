@@ -72,7 +72,7 @@ __kernel void reduction_minmax(__global float *minMax, __global float *result, _
 	const int group_id = (int)get_group_id(0);
 	const int pointsPerBlock = (int)get_local_size(0);
 		
-	if (local_id <= pointsPerBlock)
+	if (global_id % align < size)
 	{
 		local_mem[0 + 6 * local_id] = minMax[group_id * pointsPerBlock + 6 * local_id + 0];
 		local_mem[1 + 6 * local_id] = minMax[group_id * pointsPerBlock + 6 * local_id + 1];

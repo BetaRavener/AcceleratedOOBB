@@ -203,7 +203,52 @@ int nextGroupSize(int count)
 	return glm::max(glm::min(geqPow2(count),256), 32);
 }
 
-void Accelerator::run2(std::vector<glm::vec3> &input, int workGroupSize)
+OOBB Accelerator::mainRun(std::vector<glm::vec3> &input, int workGroupSize)
+{
+	Platforms::printAllInfos();
+
+	auto gpu_device = Platforms::getCpu();
+
+	// check if device is correct
+	if (Platforms::getDeviceType(gpu_device) == CL_DEVICE_TYPE_GPU)
+	{
+		std::cout << "Selected device type: Correct" << std::endl;
+	}
+	else
+	{
+		std::cout << "Selected device type: Incorrect" << std::endl;
+	}
+	std::cout << "Selected device: " << std::endl;
+	Platforms::printDeviceInfo(gpu_device);
+	std::cout << std::endl;
+
+	//===========================================================================================
+	auto context = cl::Context(gpu_device);
+
+	auto inputSize = input.size();
+
+	auto buffersPair = computeCovarianceMatrix(input, workGroupSize, gpu_device, context);
+
+	auto eigensBuffer = computeEigenVector(buffersPair.second, gpu_device, context);
+
+	auto minMax = computeMinMax(buffersPair.first, eigensBuffer, inputSize, workGroupSize, gpu_device, context);
+
+	auto result = OOBB();
+	//result.center = centroid;
+
+	result.maximums[0] = minMax.second.x;
+	result.maximums[1] = minMax.second.y;
+	result.maximums[2] = minMax.second.z;
+
+	result.minimums[0] = minMax.first.x;
+	result.minimums[1] = minMax.first.y;
+	result.minimums[2] = minMax.first.z;
+
+	return result;
+}
+
+
+std::pair<cl::Buffer, cl::Buffer> Accelerator::computeCovarianceMatrix(std::vector<glm::vec3> &input, int workGroupSize, cl::Device &device, cl::Context &context)
 {
 	cl_int code;
 
@@ -224,48 +269,15 @@ void Accelerator::run2(std::vector<glm::vec3> &input, int workGroupSize)
 	auto covIntermResult = std::vector<float>();
 	covIntermResult.resize(6 * nextWorkGroupSize);
 
-	Platforms::printAllInfos();
-
+	
 	//===========================================================================================
-	/* ======================================================
-	* TODO 1. Cast
-	* ziskat gpu device
-	* =======================================================
-	*/
-	auto gpu_device = Platforms::getCpu();
+	auto queue = cl::CommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE);
 
-	// check if device is correct
-	if (Platforms::getDeviceType(gpu_device) == CL_DEVICE_TYPE_GPU)
-	{
-		std::cout << "Selected device type: Correct" << std::endl;
-	}
-	else
-	{
-		std::cout << "Selected device type: Incorrect" << std::endl;
-	}
-	std::cout << "Selected device: " << std::endl;
-	Platforms::printDeviceInfo(gpu_device);
-	std::cout << std::endl;
-
-	//===========================================================================================
-	/* ======================================================
-	* TODO 2. Cast
-	* vytvorit context a query se zapnutym profilovanim
-	* =======================================================
-	*/
-	auto context = cl::Context(gpu_device);;
-	auto queue = cl::CommandQueue(context, gpu_device, CL_QUEUE_PROFILING_ENABLE);
-
-	auto program = ProgramCL(gpu_device, context, { "../Kernels/covariance_mat.cl", "../Kernels/covariance_reduce.cl" });
+	auto program = ProgramCL(device, context, { "../Kernels/covariance_mat.cl", "../Kernels/covariance_reduce.cl" });
 	auto covKernel = program.getKernel("covariance_matrix");
 	auto reductionKernel = program.getKernel("cov_reduce");
 
 	//===========================================================================================
-	/* ======================================================
-	* TODO 3. Cast
-	* vytvorit buffery
-	* =======================================================
-	*/
 	cl_mem_flags flags = CL_MEM_READ_WRITE;
 	auto dataBufferSize = data.size() * sizeof(float);
 	auto covIntermBufferSize = covIntermResult.size() * sizeof(float);
@@ -274,12 +286,6 @@ void Accelerator::run2(std::vector<glm::vec3> &input, int workGroupSize)
 	auto covarianceIntermediateBufferB = cl::Buffer(context, flags, covIntermBufferSize);
 
 	//===========================================================================================
-	/* ======================================================
-	* TODO 4. Cast
-	* nastavit parametry spusteni
-	* =======================================================
-	*/
-
 	covKernel.setArg(0, dataBuffer);
 	covKernel.setArg(1, covarianceIntermediateBufferA);
 	covKernel.setArg(2, workGroupSize, nullptr);
@@ -300,15 +306,6 @@ void Accelerator::run2(std::vector<glm::vec3> &input, int workGroupSize)
 	auto t1 = Helpers::getTime();
 
 	//===========================================================================================
-	/* ======================================================
-	* TODO 5. Cast
-	* velikost skupiny, kopirovat data na gpu, spusteni kernelu, kopirovani dat zpet
-	* pro zarovnání muzete pouzit funkci iCeilTo(co, na_nasobek_ceho)
-	* jako vystupni event kopirovani nastavte prepripravene eventy a_event b_event c_event
-	* vystupni event kernelu kernel_event
-	* =======================================================
-	*/
-
 	cl::NDRange local(workGroupSize);
 	cl::NDRange global(6 * alignedSize);
 
@@ -359,108 +356,96 @@ void Accelerator::run2(std::vector<glm::vec3> &input, int workGroupSize)
 	// synchronize queue
 	Helpers::checkErorCl(queue.finish(), "clFinish");
 
-	auto cov = Cpu::ComputeCovarianceMatrix(input, glm::vec3(0, 0, 0));
-
 	auto t2 = Helpers::getTime();
 
-	return;
+	return std::make_pair(dataBuffer, covarianceIntermediateBufferB);
 }
 
-void Accelerator::run3(std::vector<glm::vec3> &input, std::vector<glm::vec3> eigens, int workGroupSize)
+cl::Buffer Accelerator::computeEigenVector(cl::Buffer &covarianceMatrix, cl::Device &device, cl::Context &context)
 {
 	cl_int code;
 
-	auto inputSize = input.size();
+	auto result = std::vector<float>(9);
+
+	//===========================================================================================
+	auto queue = cl::CommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE);
+
+	auto program = ProgramCL(device, context, { "../Kernels/eigenvector.cl" });
+	auto kernel = program.getKernel("compute_eigens");
+
+	//===========================================================================================
+	cl_mem_flags flags = CL_MEM_READ_WRITE;
+
+	auto eigensBufferSize = 9 * sizeof(float);
+	auto eigensBuffer = cl::Buffer(context, flags, eigensBufferSize);
+
+	//===========================================================================================
+	kernel.setArg(0, covarianceMatrix);
+	kernel.setArg(1, eigensBuffer);
+
+	double t0 = Helpers::getTime();
+	// compute results on host
+	cl::UserEvent a_event(context, &code);
+	Helpers::checkErorCl(code, "clCreateUserEvent a_event");
+	cl::UserEvent b_event(context, &code);
+	Helpers::checkErorCl(code, "clCreateUserEvent b_event");
+	cl::UserEvent kernel_event(context, &code);
+	Helpers::checkErorCl(code, "clCreateUserEvent kernel_event");
+	cl::UserEvent c_event(context, &code);
+	Helpers::checkErorCl(code, "clCreateUserEvent c_event");
+	auto t1 = Helpers::getTime();
+
+	//===========================================================================================
+	cl::NDRange local(1);
+	cl::NDRange global(1);
+
+	// Run kernel
+	queue.enqueueNDRangeKernel(kernel, 0, global, local, nullptr, &kernel_event);
+
+	// Read data from GPU
+	queue.enqueueReadBuffer(eigensBuffer, false, 0, eigensBufferSize, &result[0], nullptr, &c_event);
+
+	// synchronize queue
+	Helpers::checkErorCl(queue.finish(), "clFinish");
+
+	auto t2 = Helpers::getTime();
+
+	return eigensBuffer;
+}
+
+std::pair<glm::vec3, glm::vec3> Accelerator::computeMinMax(cl::Buffer &points, cl::Buffer &eigens, int inputSize, int workGroupSize, cl::Device &device, cl::Context &context)
+{
+	cl_int code;
+
 	auto alignedSize = Helpers::alignSize(inputSize, workGroupSize);
 	int globalCount = alignedSize;
 	int groupsCount = alignedSize / workGroupSize;
-
-	auto points = std::vector<float>();
-	points.resize(3 * alignedSize);
-
-	for (auto i = 0; i < 3; i++)
-		for (auto j = 0; j < alignedSize; j++)
-			points[i*alignedSize + j] = j < inputSize ? input[j][i] : 0;
-
-	auto eigenVector = std::vector<float>(9);
-
-	for (auto i = 0; i < 3; i++)
-	{
-		eigenVector[3 * i + 0] = eigens[i].x;
-		eigenVector[3 * i + 1] = eigens[i].y;
-		eigenVector[3 * i + 2] = eigens[i].z;
-	}
 
 	// Just to check intermediate values
 	auto minMaxResults = std::vector<float>();
 	minMaxResults.resize(6 * groupsCount);
 
-	Platforms::printAllInfos();
 
 	//===========================================================================================
-	/* ======================================================
-	* TODO 1. Cast
-	* ziskat gpu device
-	* =======================================================
-	*/
-	auto gpu_device = Platforms::getCpu();
+	auto queue = cl::CommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE);
 
-	// check if device is correct
-	if (Platforms::getDeviceType(gpu_device) == CL_DEVICE_TYPE_GPU)
-	{
-		std::cout << "Selected device type: Correct" << std::endl;
-	}
-	else
-	{
-		std::cout << "Selected device type: Incorrect" << std::endl;
-	}
-	std::cout << "Selected device: " << std::endl;
-	Platforms::printDeviceInfo(gpu_device);
-	std::cout << std::endl;
-
-	//===========================================================================================
-	/* ======================================================
-	* TODO 2. Cast
-	* vytvorit context a query se zapnutym profilovanim
-	* =======================================================
-	*/
-	auto context = cl::Context(gpu_device);;
-	auto queue = cl::CommandQueue(context, gpu_device, CL_QUEUE_PROFILING_ENABLE);
-
-	auto program = ProgramCL(gpu_device, context, { "../Kernels/projection_mat.cl" });
+	auto program = ProgramCL(device, context, { "../Kernels/projection_mat.cl" });
 	auto kernel = program.getKernel("projection_matrix");
 
 	//auto program2 = ProgramCL(gpu_device, context, { "../Kernels/reduction_minmax.cl" });
 	auto reduce_kernel = program.getKernel("reduction_minmax");
 
 	//===========================================================================================
-	/* ======================================================
-	* TODO 3. Cast
-	* vytvorit buffery
-	* =======================================================
-	*/
-
 	cl_mem_flags flags = CL_MEM_READ_WRITE;
-	auto dataBufferSize = points.size() * sizeof(float);
-	auto dataBuffer = cl::Buffer(context, flags, dataBufferSize);
-
 	auto resultBufferSize = 6 * groupsCount * sizeof(float);
 	auto resultBuffer = cl::Buffer(context, flags, resultBufferSize);
-
-	auto eigensBufferSize = 9 * sizeof(float);
-	auto eigensBuffer = cl::Buffer(context, flags, eigensBufferSize);
-
 	auto resultBuffer2 = cl::Buffer(context, flags, resultBufferSize);
-	//===========================================================================================
-	/* ======================================================
-	* TODO 4. Cast
-	* nastavit parametry spusteni
-	* =======================================================
-	*/
 
-	kernel.setArg(0, dataBuffer);
+	//===========================================================================================
+
+	kernel.setArg(0, points);
 	kernel.setArg(1, resultBuffer);
-	kernel.setArg(2, eigensBuffer);
+	kernel.setArg(2, eigens);
 	kernel.setArg(3, 9, nullptr);
 	kernel.setArg(4, 6 * workGroupSize, nullptr);
 	kernel.setArg(5, inputSize);
@@ -479,28 +464,11 @@ void Accelerator::run3(std::vector<glm::vec3> &input, std::vector<glm::vec3> eig
 	auto t1 = Helpers::getTime();
 
 	//===========================================================================================
-	/* ======================================================
-	* TODO 5. Cast
-	* velikost skupiny, kopirovat data na gpu, spusteni kernelu, kopirovani dat zpet
-	* pro zarovnání muzete pouzit funkci iCeilTo(co, na_nasobek_ceho)
-	* jako vystupni event kopirovani nastavte prepripravene eventy a_event b_event c_event
-	* vystupni event kernelu kernel_event
-	* =======================================================
-	*/
-
 	cl::NDRange local(workGroupSize);
 	cl::NDRange global(alignedSize);
 
-	// Write data to GPU
-	queue.enqueueWriteBuffer(dataBuffer, false, 0, dataBufferSize, &points[0], nullptr, &a_event);
-
-	queue.enqueueWriteBuffer(eigensBuffer, false, 0, eigensBufferSize, &eigenVector[0], nullptr, &a_event);
 	// Run kernel
 	queue.enqueueNDRangeKernel(kernel, 0, global, local, nullptr, &kernel_event);
-
-	// synchronize queue
-	//Helpers::checkErorCl(queue.finish(), "clFinish");
-
 
 	inputSize = groupsCount;
 	cl::Buffer *inputBuffer = &resultBuffer;
@@ -513,7 +481,6 @@ void Accelerator::run3(std::vector<glm::vec3> &input, std::vector<glm::vec3> eig
 
 		reduce_kernel.setArg(0, *inputBuffer);
 		reduce_kernel.setArg(1, *result);
-
 		reduce_kernel.setArg(2, 6 * workGroupSize, nullptr);
 		reduce_kernel.setArg(3, inputSize);
 		reduce_kernel.setArg(4, alignedSize);
@@ -526,14 +493,17 @@ void Accelerator::run3(std::vector<glm::vec3> &input, std::vector<glm::vec3> eig
 		result = tmp;
 	}
 
-	// Read data from GPU
+	//// Read data from GPU
 	queue.enqueueReadBuffer(*inputBuffer, false, 0, 6 * sizeof(float), &minMaxResults[0], nullptr, &c_event);
 
 	// synchronize queue
 	Helpers::checkErorCl(queue.finish(), "clFinish");
+	
+ 	auto t2 = Helpers::getTime();
 
 	auto min = glm::vec3(minMaxResults[0], minMaxResults[1], minMaxResults[2]);
 	auto max = glm::vec3(minMaxResults[3], minMaxResults[4], minMaxResults[5]);
-	
- 	auto t2 = Helpers::getTime();
+
+	return std::make_pair(min, max);
 }
+

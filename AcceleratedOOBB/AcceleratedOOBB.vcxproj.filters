@@ -92,6 +92,7 @@
     <None Include="Kernels\projection_mat.cl">
       <Filter>Kernels</Filter>
     </None>
+    <None Include="Kernels\eigenvector.cl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\BaseApp.h">
