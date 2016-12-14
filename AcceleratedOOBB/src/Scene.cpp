@@ -94,7 +94,6 @@ void Scene::prepareScene(std::vector<glm::vec3>& pointCloudVertices)
 {
 	auto cpu = Cpu();
 	
-
 	/*std::thread second(runCL2, pointCloudVertices, eigens);
 	second.detach();*/
 
