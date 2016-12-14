@@ -18,6 +18,8 @@
 #include "OBB.h"
 #include "float3x3.h"
 #include <random>
+#include "MathLog.h"
+#include "../Clock.h"
 
 #define FLOAT_INF INFINITY
 #define DIR_VEC vec
@@ -432,7 +434,7 @@ static bool AreEdgesCompatibleForOBB(const vec &f1a, const vec &f1b, const vec &
 //#define OBB_DEBUG_PRINT
 
 // Enable this to print out detailed profiling info.
-//#define ENABLE_TIMING
+#define ENABLE_TIMING
 
 #ifdef ENABLE_TIMING
 #define TIMING_TICK(...) __VA_ARGS__
@@ -628,6 +630,7 @@ OBB OBB::OptimalEnclosingOBB(const Polyhedron &convexHull)
 	OBB minOBB;
 	float minVolume = FLOAT_INF;
 
+	TIMING("#### OBB TIMING BEGIN ####");
 	TIMING_TICK(tick_t t1 = Clock::Tick());
 	// Precomputation: For each vertex in the convex hull, compute their neighboring vertices.
 	std::vector<std::vector<int> > adjacencyData = convexHull.GenerateVertexAdjacencyData(); // O(V)
@@ -1365,6 +1368,7 @@ OBB OBB::OptimalEnclosingOBB(const Polyhedron &convexHull)
 	TIMING_TICK(tick_t t8 = Clock::Tick());
 	TIMING("Faceconfigs: %f msecs (%d configs, %d faces, %f configs/face)", Clock::TimespanToMillisecondsF(t72, t8), numTwoSameFacesConfigs, (int)spatialFaceOrder.size(), (double)numTwoSameFacesConfigs/spatialFaceOrder.size());
 	TIMING("%f vertex neighbor searches per edge, %f improvements", (double)numVertexNeighborSearches/numTwoSameFacesConfigs, (double)numVertexNeighborSearchImprovements/numTwoSameFacesConfigs);
+	TIMING("#### OBB TIMING END ####");
 
 	// The search for edge triplets does not follow cross-product orientation, so
 	// fix that up at the very last step, if necessary.

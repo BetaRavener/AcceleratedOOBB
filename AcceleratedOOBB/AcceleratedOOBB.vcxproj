@@ -132,6 +132,7 @@
     <ClCompile Include="src\float3x3.cpp" />
     <ClCompile Include="src\Generator.cpp" />
     <ClCompile Include="src\Line.cpp" />
+    <ClCompile Include="src\MathLog.cpp" />
     <ClCompile Include="src\Model.cpp" />
     <ClCompile Include="src\OBB.cpp" />
     <ClCompile Include="src\OOBB.cpp" />
@@ -152,6 +153,7 @@
     <None Include="Shaders\vert.shader" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Clock.h" />
     <ClInclude Include="src\Accelerator.h" />
     <ClInclude Include="src\BaseApp.h" />
     <ClInclude Include="src\Camera.h" />
@@ -161,6 +163,7 @@
     <ClInclude Include="src\Generator.h" />
     <ClInclude Include="src\glmext.h" />
     <ClInclude Include="src\Line.h" />
+    <ClInclude Include="src\MathLog.h" />
     <ClInclude Include="src\Model.h" />
     <ClInclude Include="src\OBB.h" />
     <ClInclude Include="src\OOBB.h" />
