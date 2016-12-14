@@ -7,13 +7,15 @@
 #include "Cpu.h"
 #include <glm/matrix.hpp>
 #include <vector>
+#include "OBB.h"
 
 class Scene: public BaseApp{
 public:
 	Scene();
 protected:
 	int _pointCloudSize;
-	bool _wireframeBox;
+	int _hullSize;
+	bool _wireframeBox, _wireframeHull;
 	float _pointSize;
 
 	Camera _camera;
@@ -21,8 +23,8 @@ protected:
 	glm::mat4 _viewMat;
 	glm::mat4 _modelMat;
 
-	GLuint _pointsVao, _boxVao;
-	GLuint _pointsVbo, _boxVbo;
+	GLuint _pointsVao, _hullVao, _boxVao[2];
+	GLuint _pointsVbo, _hullVbo, _hullElVbo, _boxVbo[2];
 	GLuint _program;
 	GLuint _mvpMatIdx, _colorIdx, _pointSizeIdx;
 	
@@ -37,8 +39,10 @@ protected:
 	void onMousePress(Uint8 button, int x, int y) override;
 	void onMouseRelease(Uint8 button, int x, int y) override;
 private:
+	
 	void prepareScene(std::vector<glm::vec3> &pointCloudVertices);
 	std::vector<glm::vec3> loadModel(std::string fileName, float scale);
+	static std::vector<glm::vec3> buildBoundingBoxPaper(const OBB& obb);
 	static std::vector<glm::vec3> buildBoundingBox(glm::vec3 center, glm::vec3 axes[], float minimums[], float maximums[]);
 	glm::vec3 colorFromRgb(uint8_t r, uint8_t g, uint8_t b) const;
 	void updateProjectionMatrix();

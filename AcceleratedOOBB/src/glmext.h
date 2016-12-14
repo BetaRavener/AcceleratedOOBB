@@ -25,7 +25,7 @@ namespace glm
 		{}
 
 		vec3ext(vec3 v) :
-			vec3(x)
+			vec3(v)
 		{}
 
 		vec3ext(float x, float y, float z) :

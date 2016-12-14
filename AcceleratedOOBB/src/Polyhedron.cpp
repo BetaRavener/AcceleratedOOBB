@@ -780,6 +780,12 @@ Polyhedron Polyhedron::ConvexHull(const vec *pointArray, int numPoints)
 	return p;
 }
 
+Polyhedron Polyhedron::ConvexHull(const glm::vec3* pointArray, int numPoints)
+{
+	auto pa = static_cast<const vec*>(pointArray);
+	return ConvexHull(pa, numPoints);
+}
+
 int IntTriCmp(int a, int b)
 {
 	return a - b;

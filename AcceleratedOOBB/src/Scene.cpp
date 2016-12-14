@@ -7,13 +7,40 @@
 #include "Accelerator.h"
 #include <thread>
 #include "Model.h"
+#include "Polyhedron.h"
+#include "OBB.h"
 
 using namespace std;
 
 Scene::Scene() {
 	_pointCloudSize = 10000;
 	_wireframeBox = false;
+	_wireframeHull = false;
 	_pointSize = 5;
+}
+
+std::vector<glm::vec3> Scene::buildBoundingBoxPaper(const OBB& obb)
+{
+	auto backBotLeft = obb.CornerPoint(0);
+	auto backBotRight = obb.CornerPoint(4); 
+	auto backTopLeft = obb.CornerPoint(2); 
+	auto backTopRight = obb.CornerPoint(6);
+	auto frontBotLeft = obb.CornerPoint(1);
+	auto frontBotRight = obb.CornerPoint(5);
+	auto frontTopLeft = obb.CornerPoint(3);
+	auto frontTopRight = obb.CornerPoint(7);
+
+	vector<glm::vec3> vertices = {
+		backBotLeft, frontBotLeft, backBotRight, frontBotRight, // Bottom side
+		backTopRight, frontTopRight, // Right side
+		backTopLeft, frontTopLeft, // Top side
+		frontTopLeft, frontBotRight, // Reset
+		frontBotRight, frontTopRight, frontBotLeft, frontTopLeft, // Front side
+		backBotLeft, backTopLeft, // Left side
+		backBotRight, backTopRight // Back side		
+	};
+
+	return vertices;
 }
 
 vector<glm::vec3> Scene::buildBoundingBox(glm::vec3 center, glm::vec3 axes[], float minimums[], float maximums[])
@@ -66,8 +93,7 @@ void runCL2(std::vector<glm::vec3> points, std::vector<glm::vec3> eigens)
 void Scene::prepareScene(std::vector<glm::vec3>& pointCloudVertices)
 {
 	auto cpu = Cpu();
-	auto oobb = cpu.CreateOOBB(pointCloudVertices);
-	auto eigens = cpu.CreateEigens(pointCloudVertices);
+	
 
 	/*std::thread second(runCL2, pointCloudVertices, eigens);
 	second.detach();*/
@@ -78,12 +104,31 @@ void Scene::prepareScene(std::vector<glm::vec3>& pointCloudVertices)
 	glBindBuffer(GL_ARRAY_BUFFER, _pointsVbo);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3)*pointCloudVertices.size(), &pointCloudVertices[0], GL_STATIC_DRAW);
 
-	// Assemble bounding box
-	auto boxVertices = buildBoundingBox(oobb.center, oobb.axes, oobb.minimums, oobb.maximums);
+	auto polyhedron = Polyhedron::ConvexHull(&pointCloudVertices[0], pointCloudVertices.size());
+	std::vector<int> indices;
+	for (auto face : polyhedron.f)
+		indices.insert(std::end(indices), std::begin(face.v), std::end(face.v));
 
-	glBindVertexArray(_boxVao);
-	glBindBuffer(GL_ARRAY_BUFFER, _boxVbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * boxVertices.size(), &boxVertices[0], GL_STATIC_DRAW);
+	glBindVertexArray(_hullVao);
+	glBindBuffer(GL_ARRAY_BUFFER, _hullVbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3)*polyhedron.v.size(), &polyhedron.v[0], GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _hullElVbo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(int), &indices[0], GL_STATIC_DRAW);
+	_hullSize = indices.size();
+
+	// Assemble bounding box
+	auto obb = OBB::OptimalEnclosingOBB(polyhedron);
+	auto oobb = cpu.CreateOOBB(pointCloudVertices);
+	auto boxVerticesPCA = buildBoundingBox(oobb.center, oobb.axes, oobb.minimums, oobb.maximums);
+	auto boxVerticesPaper = buildBoundingBoxPaper(obb);
+
+	glBindVertexArray(_boxVao[0]);
+	glBindBuffer(GL_ARRAY_BUFFER, _boxVbo[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * boxVerticesPCA.size(), &boxVerticesPCA[0], GL_STATIC_DRAW);
+
+	glBindVertexArray(_boxVao[1]);
+	glBindBuffer(GL_ARRAY_BUFFER, _boxVbo[1]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * boxVerticesPaper.size(), &boxVerticesPaper[0], GL_STATIC_DRAW);
 
 	glUseProgram(0);
 
@@ -124,22 +169,33 @@ void Scene::init() {
 
 	// Create Vertex Array Objects that save configuration of bindings and pointers
 	glGenVertexArrays(1, &_pointsVao);
-	glGenVertexArrays(1, &_boxVao);
+	glGenVertexArrays(1, &_hullVao);
+	glGenVertexArrays(2, _boxVao);
 
 	// Create Vector Buffer Objects that will store the vertices in GPU
 	glGenBuffers(1, &_pointsVbo);
-	glGenBuffers(1, &_boxVbo);
+	glGenBuffers(1, &_hullVbo);
+	glGenBuffers(1, &_hullElVbo);
+	glGenBuffers(2, _boxVbo);
 
 	glBindVertexArray(_pointsVao);
 	glBindBuffer(GL_ARRAY_BUFFER, _pointsVbo);
 	glVertexAttribPointer(positionAttrib, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
 	glEnableVertexAttribArray(positionAttrib);
 
-	glBindVertexArray(_boxVao);
-	glBindBuffer(GL_ARRAY_BUFFER, _boxVbo);
+	glBindVertexArray(_hullVao);
+	glBindBuffer(GL_ARRAY_BUFFER, _hullVbo);
 	glVertexAttribPointer(positionAttrib, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _hullElVbo);
 	glEnableVertexAttribArray(positionAttrib);
 
+	for (auto i = 0; i < 2; i++)
+	{
+		glBindVertexArray(_boxVao[i]);
+		glBindBuffer(GL_ARRAY_BUFFER, _boxVbo[i]);
+		glVertexAttribPointer(positionAttrib, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+		glEnableVertexAttribArray(positionAttrib);
+	}
 	// Unbind shader program
 	glUseProgram(0);
 
@@ -178,22 +234,47 @@ void Scene::draw(){
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	glDrawArrays(GL_POINTS, 0, _pointCloudSize);
 
-	// Set color for bounding box
-	color = glm::vec4(colorFromRgb(107, 0, 86), 1);
-	glUniform4fv(_colorIdx, 1, glm::value_ptr(color));
-
-	// Use VAO for box to render it
-	glBindVertexArray(_boxVao);
-	if (_wireframeBox)
-	{
-		// Draw as wireframe
+	// Select drawing mode
+	if (_wireframeHull)
+	{ // Draw as wireframe
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	}
 	else
 	{
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	}
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 18);
+
+	// Set color for hull
+	color = glm::vec4(colorFromRgb(39, 100, 255), 1);
+	glUniform4fv(_colorIdx, 1, glm::value_ptr(color));
+
+	// Use VAO for hull to render it
+	glBindVertexArray(_hullVao);
+	glDrawElements(GL_TRIANGLES, _hullSize, GL_UNSIGNED_INT, nullptr);
+
+	// Select drawing mode
+	if (_wireframeBox)
+	{ // Draw as wireframe
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	}
+	else
+	{
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	}
+
+	// Use VAO for box to render it
+	glm::vec4 boxColors[2];
+	boxColors[0] = glm::vec4(colorFromRgb(107, 0, 86), 1);
+	boxColors[1] = glm::vec4(colorFromRgb(153, 126, 30), 1);
+	for (auto i = 0; i < 2; i++)
+	{
+		// Set color for bounding box
+		color = boxColors[i];
+		glUniform4fv(_colorIdx, 1, glm::value_ptr(color));
+
+		glBindVertexArray(_boxVao[i]);
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 18);
+	}
 
 	// Unbind program
 	glUseProgram(0);
@@ -234,6 +315,9 @@ void Scene::onKeyPress(SDL_Keycode key, Uint16 mod){
 			break;
 		case SDLK_w:
 			_wireframeBox = !_wireframeBox;
+			break;
+		case SDLK_h:
+			_wireframeHull = !_wireframeHull;
 			break;
 		case SDLK_q:
 			if (_pointSize > 1.0f)

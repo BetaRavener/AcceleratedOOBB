@@ -122,6 +122,7 @@ public:
 	/// \todo This function is strongly WIP!
 	static Polyhedron ConvexHull(const VecArray &points) { return !points.empty() ? ConvexHull((const vec*)&points[0], (int)points.size()) : Polyhedron(); }
 	static Polyhedron ConvexHull(const vec *pointArray, int numPoints);
+	static Polyhedron ConvexHull(const glm::vec3 *pointArray, int numPoints);
 
 	void RemoveDegenerateFaces();
 	void RemoveRedundantVertices();
