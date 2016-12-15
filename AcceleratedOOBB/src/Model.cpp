@@ -16,9 +16,9 @@ std::vector<glm::vec3> Model::load(std::string fileName, float scale)
 	}
 
 	// Center the model into origin
-	glm::vec3 centroid = Cpu::ComputeCentroid(points);
-	for (auto i = 0; i < points.size(); i++)
-		points[i] -= centroid;
+	//glm::vec3 centroid = Cpu::ComputeCentroid(points);
+	//for (auto i = 0; i < points.size(); i++)
+	//	points[i] -= centroid;
 
 	return points;
 }

@@ -95,7 +95,15 @@
     <None Include="Kernels\projection_mat.cl">
       <Filter>Kernels</Filter>
     </None>
-    <None Include="Kernels\eigenvector.cl" />
+    <None Include="Kernels\points_sum.cl">
+      <Filter>Kernels</Filter>
+    </None>
+    <None Include="Kernels\eigenvector.cl">
+      <Filter>Kernels</Filter>
+    </None>
+    <None Include="Kernels\center_points.cl">
+      <Filter>Kernels</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\BaseApp.h">

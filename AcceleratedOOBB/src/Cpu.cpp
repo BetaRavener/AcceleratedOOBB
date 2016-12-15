@@ -10,7 +10,7 @@ std::vector<glm::vec3> Cpu::CreateEigens(std::vector<glm::vec3> & points)
 {
 	auto centroid = ComputeCentroid(points);
 
-	auto covarianceMatrix = ComputeCovarianceMatrix(points, centroid);
+	auto covarianceMatrix = ComputeCovarianceMatrix(points);
 
 	auto eigenValues = ComputeEigenValues(covarianceMatrix);
 	auto eigenVecs = ComputeEigenVectors(covarianceMatrix, eigenValues);
@@ -42,9 +42,12 @@ std::vector<glm::vec3> Cpu::CreateEigens(std::vector<glm::vec3> & points)
 
 OOBB Cpu::CreateOOBB(std::vector<glm::vec3> & points)
 { 
+	// Center the model into origin
 	auto centroid = ComputeCentroid(points);
+	for (auto i = 0; i < points.size(); i++)
+		points[i] -= centroid;
 
-	auto covarianceMatrix = ComputeCovarianceMatrix(points, centroid);
+	auto covarianceMatrix = ComputeCovarianceMatrix(points);
 
 	auto eigenValues = ComputeEigenValues(covarianceMatrix);
 	auto eigenVecs = ComputeEigenVectors(covarianceMatrix, eigenValues);
@@ -79,7 +82,7 @@ OOBB Cpu::CreateOOBB(std::vector<glm::vec3> & points)
 	auto max = glm::vec3();
 	for (unsigned int i = 0; i < points.size(); i++)
 	{
-		auto centeredPoint = (points[i] - centroid);
+		auto centeredPoint = points[i];
 
 		auto projectedPoint = glm::vec3();
 		projectedPoint.x = glm::dot(centeredPoint, eigenVector1);
@@ -169,7 +172,7 @@ float determinant(glm::mat3x3 matrix)
 	return x1 + x2 + x3 - y1 - y2 - y3;
 }
 
-glm::mat3x3 Cpu::ComputeCovarianceMatrix(std::vector<glm::vec3> & points, glm::vec3 centroid)
+glm::mat3x3 Cpu::ComputeCovarianceMatrix(std::vector<glm::vec3> & points)
 {
 	std::vector<glm::vec3> centeredPoints(points.size());
 	auto** matrix = new float*[3];
@@ -182,7 +185,7 @@ glm::mat3x3 Cpu::ComputeCovarianceMatrix(std::vector<glm::vec3> & points, glm::v
 
 	for (auto i = 0; i < points.size(); i++)
 	{
-		auto centeredPoint = points[i] - centroid;
+		auto centeredPoint = points[i];
 		matrix[0][i] = centeredPoint.x;
 		matrix[1][i] = centeredPoint.y;
 		matrix[2][i] = centeredPoint.z;
@@ -191,7 +194,7 @@ glm::mat3x3 Cpu::ComputeCovarianceMatrix(std::vector<glm::vec3> & points, glm::v
 		matrixT[i][1] = centeredPoint.y;
 		matrixT[i][2] = centeredPoint.z;
 
-		centeredPoints[i] = (points[i] - centroid);
+		centeredPoints[i] = points[i];
 	}
 
 

@@ -84,19 +84,9 @@ void runCL(std::vector<glm::vec3> points)
 	acc.mainRun(points, 256);
 }
 
-void runCL2(std::vector<glm::vec3> points, std::vector<glm::vec3> eigens)
-{
-	auto acc = Accelerator();
-	//acc.run3(points, eigens, 256);
-}
-
 void Scene::prepareScene(std::vector<glm::vec3>& pointCloudVertices)
 {
 	auto cpu = Cpu();
-	
-
-	std::thread second(runCL, pointCloudVertices);
-	second.detach();
 
 	glUseProgram(_program);
 
@@ -117,18 +107,18 @@ void Scene::prepareScene(std::vector<glm::vec3>& pointCloudVertices)
 	_hullSize = indices.size();
 
 	// Assemble bounding box
-	auto obb = OBB::OptimalEnclosingOBB(polyhedron);
-	auto oobb = cpu.CreateOOBB(pointCloudVertices);
-	auto boxVerticesPCA = buildBoundingBox(oobb.center, oobb.axes, oobb.minimums, oobb.maximums);
-	auto boxVerticesPaper = buildBoundingBoxPaper(obb);
+	//auto obb = OBB::OptimalEnclosingOBB(polyhedron);
+	//auto oobb = cpu.CreateOOBB(pointCloudVertices);
+	//auto boxVerticesPCA = buildBoundingBox(oobb.center, oobb.axes, oobb.minimums, oobb.maximums);
+	//auto boxVerticesPaper = buildBoundingBoxPaper(obb);
 
-	glBindVertexArray(_boxVao[0]);
-	glBindBuffer(GL_ARRAY_BUFFER, _boxVbo[0]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * boxVerticesPCA.size(), &boxVerticesPCA[0], GL_STATIC_DRAW);
+	//glBindVertexArray(_boxVao[0]);
+	//glBindBuffer(GL_ARRAY_BUFFER, _boxVbo[0]);
+	//glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * boxVerticesPCA.size(), &boxVerticesPCA[0], GL_STATIC_DRAW);
 
-	glBindVertexArray(_boxVao[1]);
-	glBindBuffer(GL_ARRAY_BUFFER, _boxVbo[1]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * boxVerticesPaper.size(), &boxVerticesPaper[0], GL_STATIC_DRAW);
+	//glBindVertexArray(_boxVao[1]);
+	//glBindBuffer(GL_ARRAY_BUFFER, _boxVbo[1]);
+	//glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * boxVerticesPaper.size(), &boxVerticesPaper[0], GL_STATIC_DRAW);
 
 	glUseProgram(0);
 
