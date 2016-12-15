@@ -1,21 +1,21 @@
-__kernel void points_sum(__global float *points, __local float *local_mem, __global float *result, int length, int align)
+__kernel void points_sum(__global float *points, __local float *local_mem, __global float *result, int length, int globalThreadCount)
 {
 	const int global_id = (int)get_global_id(0);
 	const int group_id = (int)get_group_id(0);
 	const int local_id = (int)get_local_id(0);
 	const int local_w = (int)get_local_size(0);
 
-	const int align_groups = align / local_w;
-	const int groupsCountPerDimension = align_groups / 3;
-	const int globalSizePerDimension = align / 3;
+	const int groupsCount = globalThreadCount / local_w;
+	const int groupsCountPerDimension = groupsCount / 3;
+	const int threadCountPerDimension = globalThreadCount / 3;
 	const int dimension = group_id / groupsCountPerDimension;
 
 	float sum = 0;
-	int current_id = global_id - dimension * globalSizePerDimension;
+	int current_id = global_id - dimension * threadCountPerDimension;
 	// Loop sequentially over chunks of input vector
 	while (current_id < length) {
 		sum += points[dimension * length + current_id];
-		current_id += globalSizePerDimension;
+		current_id += threadCountPerDimension;
 	}
 
 	// Perform parallel reduction
