@@ -23,7 +23,8 @@ public:
 	std::pair<cl::Buffer, glm::vec3> computeMean(std::vector<glm::vec3> &input, int workGroupSize, cl::Device &device, cl::Context &context);
 	void Accelerator::centerPoints(cl::Buffer & points, int workGroupSize, cl::Device &device, cl::Context &context, int inputSize, glm::vec3 & centroid);
 
-
+private:
+	int threadCount;
 };
 
 #endif

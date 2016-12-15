@@ -227,6 +227,14 @@ OOBB Accelerator::mainRun(std::vector<glm::vec3> &input, int workGroupSize)
 
 	auto inputSize = input.size();
 
+	//cl_uint computeUnitCount;
+	//size_t retSize;
+	//Helpers::checkErorCl(
+	//	clGetDeviceInfo(gpu_device(), CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(cl_uint), (void*)&computeUnitCount, &retSize),
+	//	"Getting GPU INFO");
+
+	//threadCount = computeUnitCount * 2048 * 2;
+
 	auto bufferAndSum = computeMean(input, workGroupSize, gpu_device, context);
 
 	auto centroid = bufferAndSum.second / (float)inputSize;
@@ -262,8 +270,15 @@ std::pair<cl::Buffer, glm::vec3> Accelerator::computeMean(std::vector<glm::vec3>
 	cl_int code;
 
 	auto inputSize = input.size();
-	// For Example - it has to be dividable by 3
-	auto alignedSize = 3  * workGroupSize;//Helpers::alignSize(inputSize, workGroupSize);
+
+	// For Example - it has to be dividable by 3 and by workGroupSize
+	//workGroupSize = 192;
+	auto alignedSize = 3 * workGroupSize;// Helpers::alignSize(inputSize * 3, workGroupSize);
+	//if (alignedSize > threadCount)
+	//{
+	//	alignedSize = Helpers::alignSize(threadCount - workGroupSize, workGroupSize);
+	//}
+
 	auto groupsCount = alignedSize / workGroupSize;
 
 	auto finalSum = std::vector<float>(3);
@@ -276,9 +291,6 @@ std::pair<cl::Buffer, glm::vec3> Accelerator::computeMean(std::vector<glm::vec3>
 		for (auto j = 0; j < alignedInputSize; j++)
 			data[i*alignedInputSize + j] = j < inputSize ? input[j][i] : 0;
 
-	//auto resultSize = Helpers::ceilDiv(inputSize, workGroupSize);
-	//auto nextWorkGroupSize = nextGroupSize(resultSize);
-	//auto nextAlignedSize = Helpers::alignSize(resultSize, nextWorkGroupSize);
 
 	//===========================================================================================
 	auto queue = cl::CommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE);
@@ -325,9 +337,9 @@ std::pair<cl::Buffer, glm::vec3> Accelerator::computeMean(std::vector<glm::vec3>
 
 	// It is possible, that all is reduced, but if not, we continue reducing
 	inputSize = groupsCount / 3;
-	if (inputSize > 1)
+	if (false)
 	{
-		alignedSize = inputSize * 3 * workGroupSize; // Helpers::alignSize(inputSize, workGroupSize);
+		alignedSize = Helpers::alignSize(inputSize * 3, workGroupSize);
 		//workGroupSize = nextWorkGroupSize;
 
 		local = cl::NDRange(workGroupSize);
@@ -356,6 +368,17 @@ std::pair<cl::Buffer, glm::vec3> Accelerator::computeMean(std::vector<glm::vec3>
 	Helpers::checkErorCl(queue.finish(), "clFinish");
 
 	auto t2 = Helpers::getTime();
+
+	//float a = 0;
+	//float b = 0;
+	//float c = 0;
+	//for (int i = 0; i < 10; i++)
+	//{
+	//	a += finalSum[i];
+	//	b += finalSum[i + 10];
+	//	c += finalSum[i + 20];
+
+	//}
 
 	return std::make_pair(dataBuffer, glm::vec3(finalSum[0], finalSum[1], finalSum[2]));
 }
@@ -398,11 +421,9 @@ void Accelerator::centerPoints(cl::Buffer & points, int workGroupSize, cl::Devic
 	//===========================================================================================
 	cl::NDRange local(workGroupSize);
 	cl::NDRange global(alignedSize);
-	auto data = std::vector<float>(8192);
 
 	// Run kernel
 	queue.enqueueNDRangeKernel(centerKernel, 0, global, local, nullptr, &kernel_event);
-	queue.enqueueReadBuffer(points, false, 0, groupsCount * alignedInputSize * sizeof(float), &data[0], nullptr, &c_event);
 
 	// synchronize queue
 	Helpers::checkErorCl(queue.finish(), "clFinish");
