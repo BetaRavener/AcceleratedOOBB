@@ -1,5 +1,4 @@
 #include "Platforms.h"
-#include <CL/cl.hpp>
 #include "Helpers.h"
 #include <iostream>
 #include <algorithm>

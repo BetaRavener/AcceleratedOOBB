@@ -17,6 +17,7 @@
 	@brief */
 #include "float3x3.h"
 #include "glmext.h"
+#include "Common.h"
 
 float3x3::float3x3(float _00, float _01, float _02,
                    float _10, float _11, float _12,

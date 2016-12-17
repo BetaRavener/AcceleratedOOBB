@@ -7,11 +7,7 @@
 #include <sys/time.h>
 #endif //WIN32
 
-#ifdef _DEBUG
-#define CONTROL_OUTPUT true
-#else
 #define CONTROL_OUTPUT false
-#endif
 
 int Helpers::alignSize(int size, int alignTo)
 {
@@ -40,7 +36,7 @@ void Helpers::checkErorCl(cl_int code, std::string description)
 		throw std::exception("" + code);
 	}
 	
-		if (CONTROL_OUTPUT) {
+	if (CONTROL_OUTPUT) {
 		std::cout << Helpers::getTime() << " OK: " << description << std::endl;
 	}
 }

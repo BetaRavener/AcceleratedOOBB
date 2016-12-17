@@ -113,13 +113,4 @@ namespace glm
 typedef glm::vec3ext vec;
 typedef std::vector<glm::vec3ext> VecArray;
 
-/// Swaps the two values.
-template<typename T>
-inline void Swap(T &a, T &b)
-{
-	T temp = a;
-	a = b;
-	b = temp;
-}
-
 #endif

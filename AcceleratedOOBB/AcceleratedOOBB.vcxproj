@@ -159,6 +159,7 @@
     <ClInclude Include="src\Accelerator.h" />
     <ClInclude Include="src\BaseApp.h" />
     <ClInclude Include="src\Camera.h" />
+    <ClInclude Include="src\Common.h" />
     <ClInclude Include="src\Cpu.h" />
     <ClInclude Include="src\eig3.h" />
     <ClInclude Include="src\float3x3.h" />

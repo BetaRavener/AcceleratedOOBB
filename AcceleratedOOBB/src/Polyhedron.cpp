@@ -27,6 +27,7 @@
 #include <random>
 #include "Plane.h"
 #include "Line.h"
+#include "Common.h"
 
 #if __cplusplus > 199711L // Is C++11 or newer?
 #define HAS_UNORDERED_MAP
