@@ -131,6 +131,7 @@
     <ClCompile Include="src\eig3.cpp" />
     <ClCompile Include="src\float3x3.cpp" />
     <ClCompile Include="src\Generator.cpp" />
+    <ClCompile Include="src\glmext.cpp" />
     <ClCompile Include="src\Line.cpp" />
     <ClCompile Include="src\MathLog.cpp" />
     <ClCompile Include="src\Model.cpp" />

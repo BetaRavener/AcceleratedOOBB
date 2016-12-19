@@ -81,7 +81,13 @@ vector<glm::vec3> Scene::buildBoundingBox(glm::vec3 center, glm::vec3 axes[], fl
 void runCL(std::vector<glm::vec3> points)
 {
 	auto acc = Accelerator();
-	acc.mainRun(points, 256);
+	OOBB obb;
+	for (auto i = 0; i < 10; i++) {
+		cout << "Run " << i + 1 << ": " << std::endl;
+		obb = acc.mainRun(points, 256);
+	}
+
+	std::cout << "Accelerated results:\n" << obb << std::endl;
 }
 
 void Scene::prepareScene(std::vector<glm::vec3>& pointCloudVertices)
@@ -111,6 +117,7 @@ void Scene::prepareScene(std::vector<glm::vec3>& pointCloudVertices)
 	auto oobb = cpu.CreateOOBB(pointCloudVertices);
 	auto boxVerticesPCA = buildBoundingBox(oobb.center, oobb.axes, oobb.minimums, oobb.maximums);
 	auto boxVerticesPaper = buildBoundingBoxPaper(obb);
+	std::cout << "CPU results:\n" << oobb << std::endl;
 
 	glBindVertexArray(_boxVao[0]);
 	glBindBuffer(GL_ARRAY_BUFFER, _boxVbo[0]);

@@ -45,16 +45,15 @@ __kernel void covariance_matrix(__global float *vec, __global float *result, __l
 
 	barrier(CLK_LOCAL_MEM_FENCE);
 
-	for (int working_size = (int)local_w >> 1; working_size > 0; working_size >>= 1)
-	{
-		if (local_id < working_size)
-			local_mem[local_id] += local_mem[local_id + working_size];
+	//for (int working_size = (int)local_w >> 1; working_size > 0; working_size >>= 1)
+	//{
+	//	if (local_id < working_size)
+	//		local_mem[local_id] += local_mem[local_id + working_size];
 
-		barrier(CLK_LOCAL_MEM_FENCE);
-	}
+	//	barrier(CLK_LOCAL_MEM_FENCE);
+	//}
 
-	if (local_id == 0) {
-		//result[(align_group_id * nextAlign) + (group_id % align_groups)] = local_mem[0];
+	/*if (local_id == 0) {
 		result[(align_group_id * nextAlign) + (group_id % align_groups)] = local_mem[0];
-	}
+	}*/
 }

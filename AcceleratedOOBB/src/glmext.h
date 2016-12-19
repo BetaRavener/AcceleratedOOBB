@@ -4,6 +4,7 @@
 #include <glm/detail/type_vec3.hpp>
 #include <glm/geometric.hpp>
 #include <vector>
+#include <sstream>
 
 namespace glm
 {
@@ -112,5 +113,7 @@ namespace glm
 
 typedef glm::vec3ext vec;
 typedef std::vector<glm::vec3ext> VecArray;
+
+std::string formatVec3(const glm::vec3& vec);
 
 #endif

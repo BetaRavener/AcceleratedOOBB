@@ -13,7 +13,10 @@ namespace cl
 	class Context;
 	class Device;
 	class CommandQueue;
+	class Kernel;
 }
+
+class ProgramCL;
 
 
 class Accelerator
@@ -22,8 +25,8 @@ public:
 	Accelerator();
 
 	cl::Buffer Accelerator::computeCovarianceMatrix(int workGroupSize, cl::Buffer &dataBuffer, int inputSize) const;
-	std::pair<glm::vec3, glm::vec3> computeMinMax(cl::Buffer &points, cl::Buffer &eigens, int inputSize, int workGroupSize) const;
-	std::pair<cl::Buffer, std::vector<float>> computeEigenVector(cl::Buffer &covarianceMatrix) const;
+	cl::Buffer computeMinMax(cl::Buffer &points, cl::Buffer &eigens, int inputSize, int workGroupSize) const;
+	cl::Buffer computeEigenVector(cl::Buffer &covarianceMatrix) const;
 	OOBB mainRun(std::vector<glm::vec3> &input, int workGroupSize);
 	std::pair<cl::Buffer, glm::vec3> computeMean(std::vector<glm::vec3> &input, int workGroupSize) const;
 	void Accelerator::centerPoints(cl::Buffer & points, int workGroupSize, int inputSize, glm::vec3 & centroid) const;
@@ -33,6 +36,11 @@ private:
 	std::shared_ptr<cl::Device> device;
 	std::shared_ptr<cl::Context> context;
 	std::shared_ptr<cl::CommandQueue> queue;
+	std::shared_ptr<ProgramCL> program;
+	std::shared_ptr<cl::Kernel> sumKernel, centerKernel, covKernel;
+	std::shared_ptr<cl::Kernel> covReductionKernel, eigenKernel;
+	std::shared_ptr<cl::Kernel> projKernel, projReductionKernel;
+	std::shared_ptr<cl::Buffer> dataBuffer, centerBuffer, covBuffer, minMaxBuffer;
 };
 
 #endif
