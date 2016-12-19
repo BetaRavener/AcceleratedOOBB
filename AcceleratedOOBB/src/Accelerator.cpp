@@ -16,7 +16,7 @@
 
 #define SELECTED_DEVICE_TYPE CL_DEVICE_TYPE_CPU
 
-//#define TIMING_GPU
+#define TIMING_GPU
 #define TIMING_CPU
 #ifdef TIMING_GPU
 #define PROFILE_FLAG CL_QUEUE_PROFILING_ENABLE
@@ -253,8 +253,8 @@ std::pair<cl::Buffer, glm::vec3> Accelerator::computeMean(std::vector<glm::vec3>
 		resultBufferSize = finalBufferSize;
 	}
 
-	Helpers::checkErorCl(queue->finish(), "clFinish");
 	queue->enqueueReadBuffer(resultBuffer, false, 0, resultBufferSize, &finalSum[0], nullptr, &read_event);
+	Helpers::checkErorCl(queue->finish(), "clFinish");
 
 	// synchronize queue
 #ifdef TIMING_GPU
@@ -333,14 +333,11 @@ cl::Buffer Accelerator::computeCovarianceMatrix(int workGroupSize, cl::Buffer &d
 	auto nextWorkGroupSize = nextGroupSize(resultSize);
 	auto nextAlignedSize = Helpers::alignSize(resultSize, nextWorkGroupSize);
 
-	auto covIntermResult = std::vector<float>();
-	covIntermResult.resize(6 * nextAlignedSize);
-
 	//===========================================================================================
 	cl_mem_flags flags = CL_MEM_READ_WRITE;
-	auto covIntermBufferSize = covIntermResult.size() * sizeof(float);
-	auto covarianceResultBuffer = cl::Buffer(*context, flags, covIntermBufferSize);
-	auto covarianceSecondBuffer = cl::Buffer(*context, flags, covIntermBufferSize);
+	auto covarianceResultByteSize = 6 * nextAlignedSize * sizeof(float);
+	auto covarianceResultBuffer = cl::Buffer(*context, flags, covarianceResultByteSize);
+	auto covarianceSecondBuffer = cl::Buffer(*context, flags, covarianceResultByteSize);
 
 	//===========================================================================================
 	covKernel->setArg(0, dataBuffer);
@@ -360,7 +357,6 @@ cl::Buffer Accelerator::computeCovarianceMatrix(int workGroupSize, cl::Buffer &d
 
 	// Run kernel
 	queue->enqueueNDRangeKernel(*covKernel, 0, global, local, nullptr, &kernel_event);
-	Helpers::checkErorCl(queue->finish(), "clFinish");
 
 	while (resultSize != 1)
 	{

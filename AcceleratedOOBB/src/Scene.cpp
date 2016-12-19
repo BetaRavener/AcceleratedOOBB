@@ -82,7 +82,7 @@ void runCL(std::vector<glm::vec3> points)
 {
 	auto acc = Accelerator();
 	OOBB obb;
-	for (auto i = 0; i < 10; i++) {
+	for (auto i = 0; i < 1; i++) {
 		cout << "Run " << i + 1 << ": " << std::endl;
 		obb = acc.mainRun(points, 256);
 	}
