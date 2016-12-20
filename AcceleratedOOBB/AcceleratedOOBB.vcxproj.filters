@@ -51,9 +51,6 @@
     <ClCompile Include="src\Platforms.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\eig3.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\Model.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -140,9 +137,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\Platforms.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\eig3.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\Model.h">

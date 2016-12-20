@@ -129,7 +129,6 @@
     <ClCompile Include="src\BaseApp.cpp" />
     <ClCompile Include="src\Camera.cpp" />
     <ClCompile Include="src\Cpu.cpp" />
-    <ClCompile Include="src\eig3.cpp" />
     <ClCompile Include="src\float3x3.cpp" />
     <ClCompile Include="src\Generator.cpp" />
     <ClCompile Include="src\glmext.cpp" />
@@ -164,7 +163,6 @@
     <ClInclude Include="src\Camera.h" />
     <ClInclude Include="src\Common.h" />
     <ClInclude Include="src\Cpu.h" />
-    <ClInclude Include="src\eig3.h" />
     <ClInclude Include="src\float3x3.h" />
     <ClInclude Include="src\Generator.h" />
     <ClInclude Include="src\glmext.h" />
