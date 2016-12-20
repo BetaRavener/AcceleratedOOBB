@@ -22,6 +22,8 @@
 #include "Polyhedron.h"
 #include "glmext.h"
 
+class Accelerator;
+
 /// A 3D arbitrarily oriented bounding box.
 /** This data structure represents a box in 3D space. The local axes of this box can be arbitrarily oriented/rotated
 	with respect to the global world coordinate system. This allows OBBs to more tightly bound objects than AABBs do,
@@ -177,8 +179,10 @@ public:
 	/// Computes the smallest OBB by volume that encloses the given point set.
 	/** This function implements the algorithm from the paper
 		An Exact Algorithm for Finding Minimum Oriented Bounding Boxes, Jukka Jylänki, 2015. Available at http://clb.demon.fi/minobb/ */
-	static OBB OptimalEnclosingOBB(const vec *pointArray, int numPoints, bool gpu);
-	static OBB OptimalEnclosingOBB(const Polyhedron &convexPolyhedron, bool gpu);
+	static OBB OptimalEnclosingOBB(const vec *pointArray, int numPoints);
+	static OBB OptimalEnclosingOBB(const Polyhedron &convexPolyhedron, Accelerator* accelearator);
+
+	friend std::ostream& operator<<(std::ostream&, const OBB&);
 };
 
 #endif

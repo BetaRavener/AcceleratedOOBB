@@ -40,6 +40,14 @@ void Camera::Reset() {
 	changed = true;
 }
 
+void Camera::SetLooakAt(glm::vec3& pos)
+{
+	auto moveVec = pos - lookAt;
+	lookAt += moveVec;
+	eye += moveVec;
+	changed = true;
+}
+
 void Camera::RotateA(const glm::vec3 &vec) {
 	rotations = glm::vec3(0, 0, 0);
 	Rotate(vec.x, vec.y);

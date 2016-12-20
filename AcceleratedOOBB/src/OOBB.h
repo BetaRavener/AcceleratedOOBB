@@ -15,6 +15,7 @@ public:
 	~OOBB();
 
 	friend std::ostream& operator<<(std::ostream&, const OOBB&);
+	double volume();
 };
 
 #endif // !OOBB_H

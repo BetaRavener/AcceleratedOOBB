@@ -11,6 +11,14 @@ OOBB::~OOBB()
 {
 }
 
+double OOBB::volume()
+{
+	auto x = maximums[0] - minimums[0];
+	auto y = maximums[1] - minimums[1];
+	auto z = maximums[2] - minimums[2];
+	return x * y * z;
+}
+
 std::ostream& operator<<(std::ostream &strm, const OOBB &obb)
 {
 	return strm << "Axes\n\t0: " << formatVec3(obb.axes[0])

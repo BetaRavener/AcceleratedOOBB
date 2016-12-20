@@ -278,14 +278,14 @@ namespace
 }
 
 
-OBB OBB::OptimalEnclosingOBB(const vec *pointArray, int numPoints, bool gpu)
+OBB OBB::OptimalEnclosingOBB(const vec *pointArray, int numPoints)
 {
 	// Precomputation: Generate the convex hull of the input point set. This is because
 	// we need vertex-edge-face connectivity information about the convex hull shape, and
 	// this also allows discarding all points in the interior of the input hull, which
 	// are irrelevant.
 	Polyhedron convexHull = Polyhedron::ConvexHull(pointArray, numPoints);
-	return OptimalEnclosingOBB(convexHull, gpu);
+	return OptimalEnclosingOBB(convexHull, nullptr);
 }
 
 bool IsVertexAntipodalToEdge(const Polyhedron &convexHull, int vi, const std::vector<int> &neighbors, const vec &f1a, const vec &f1b)
@@ -335,16 +335,7 @@ bool IsVertexAntipodalToEdge(const Polyhedron &convexHull, int vi, const std::ve
 	return true;
 }
 
-int calcTotalCompanion(std::vector<std::vector<int>> compEdges)
-{
-	auto acc = 0;
-	for (auto edge : compEdges)
-		acc += edge.size();
-
-	return acc;
-}
-
-OBB OBB::OptimalEnclosingOBB(const Polyhedron &convexHull, bool gpu)
+OBB OBB::OptimalEnclosingOBB(const Polyhedron &convexHull, Accelerator* accelearator)
 {
 	/* Outline of the algorithm:
 	  0. Compute the convex hull of the point set (given as input to this function) O(VlogV)
@@ -559,7 +550,7 @@ OBB OBB::OptimalEnclosingOBB(const Polyhedron &convexHull, bool gpu)
 #pragma region Sidepodal
 	// Stores for each edge i the list of all sidepodal edge indices j that it can form an OBB with.
 	std::vector<std::vector<int> > compatibleEdges(edges.size());
-	if (!gpu)
+	if (accelearator == nullptr)
 	{
 		// Precomputation: Compute all potential companion edges for each edge.
 		// This is O(E^2)
@@ -577,23 +568,20 @@ OBB OBB::OptimalEnclosingOBB(const Polyhedron &convexHull, bool gpu)
 						compatibleEdges[j].push_back(i);
 				}
 		}
-
-		TIMING_TICK(
-			tick_t t5 = Clock::Tick();
-		size_t numTotalEdges = 0;
-		for (size_t i = 0; i < compatibleEdges.size(); ++i)
-			numTotalEdges += compatibleEdges[i].size();
-		);
-		TIMING("Companionedges: %f msecs (%d edges have on average %d companion edges each)", Clock::TimespanToMillisecondsF(t4, t5), (int)compatibleEdges.size(), (int)(numTotalEdges / compatibleEdges.size()));
-		TIMING_TICK(t5 = Clock::Tick());
 	}
 	else
 	{
-		//TODO: free somehow
-		auto acc = new Accelerator();
-		compatibleEdges = acc->sidepodals(faceNormals, edges, 4);
+		compatibleEdges = accelearator->sidepodals(faceNormals, facesForEdge, 4);
 	}
-	std::cout << "Total companion: " << calcTotalCompanion(compatibleEdges) << std::endl;
+	TIMING_TICK(
+		tick_t t5 = Clock::Tick();
+	size_t numTotalEdges = 0;
+	for (size_t i = 0; i < compatibleEdges.size(); ++i)
+		numTotalEdges += compatibleEdges[i].size();
+	);
+	TIMING("Companionedges: %f msecs (%d edges have on average %d companion edges each)", Clock::TimespanToMillisecondsF(t4, t5), (int)compatibleEdges.size(), (int)(numTotalEdges / compatibleEdges.size()));
+	TIMING_TICK(t5 = Clock::Tick());
+
 #pragma endregion Sidepodal
 
 #pragma region Faceconfigs
@@ -776,4 +764,12 @@ float OBB::SurfaceArea() const
 {
 	const vec size = Size();
 	return 2.f * (size.x*size.y + size.x*size.z + size.y*size.z);
+}
+
+std::ostream& operator<<(std::ostream& strm, const OBB& obb)
+{
+	return strm << "Axes\n\t0: " << formatVec3(obb.axis[0])
+		<< "\n\t1: " << formatVec3(obb.axis[1])
+		<< "\n\t2: " << formatVec3(obb.axis[2])
+		<< "\nDimensions:\n\tHalf-size: " << obb.r[0] << ", " << obb.r[1] << ", " << obb.r[2];
 }
