@@ -14,7 +14,11 @@
 using namespace std;
 
 #ifndef EXPERIMENTS_COUNT
+#ifdef _DEBUG
+#define EXPERIMENTS_COUNT 1
+#else
 #define EXPERIMENTS_COUNT 5
+#endif
 #endif
 
 Scene::Scene() {
