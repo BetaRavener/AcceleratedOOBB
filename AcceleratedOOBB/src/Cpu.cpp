@@ -160,7 +160,7 @@ OOBB Cpu::CreateOOBB(std::vector<glm::vec3> & points)
 
 #ifdef TIMING_CPU
 	auto t1 = Clock::Tick();
-	std::cout << "CPU IMPLEMENTATION TIME: Total time: " << Clock::FormatTime(t1 - t0) << std::endl;
+	std::cout << "TIME: PCA Total time CPU: " << Clock::FormatTime(t1 - t0) << std::endl;
 	std::cout << "#### PCA CPU IMPLEMENTATION TIMING ENDING ####" << std::endl;
 #endif
 
