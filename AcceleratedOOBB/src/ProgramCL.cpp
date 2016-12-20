@@ -22,7 +22,7 @@ ProgramCL::ProgramCL(cl::Device device, cl::Context context, std::vector<std::st
 	Helpers::checkErorCl(codes[0], "clProgram");
 
 	// build program
-	if ((codes[0] = _program.build(std::vector<cl::Device>(1, _device), "", nullptr, nullptr)) == CL_BUILD_PROGRAM_FAILURE)
+	if ((codes[0] = _program.build(std::vector<cl::Device>(1, _device))) == CL_BUILD_PROGRAM_FAILURE)
 	{
 		std::cerr << "Build log:\n %s" << _program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(_device, &codes[1]).c_str();
 		Helpers::checkErorCl(codes[1], "cl::Program::getBuildInfo<CL_PROGRAM_BUILD_LOG>");

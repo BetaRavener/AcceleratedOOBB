@@ -20,6 +20,7 @@ public:
 	void InvertY() { invertedY = !invertedY; }
 	void ZoomBy(float zoomFactor);
 	void Reset();
+	void SetLooakAt(glm::vec3 &pos);
 protected:
 	glm::vec3 eye, lookAt, up;
 	bool invertedY, changed;

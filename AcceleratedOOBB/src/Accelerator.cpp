@@ -16,7 +16,7 @@
 
 #define SELECTED_DEVICE_TYPE CL_DEVICE_TYPE_GPU
 
-#define TIMING_GPU
+//#define TIMING_GPU
 #define TIMING_CPU
 #ifdef TIMING_GPU
 #define PROFILE_FLAG CL_QUEUE_PROFILING_ENABLE
@@ -562,22 +562,44 @@ __inline cl_float4 vec3_to_float4(glm::vec3ext v)
 	return c;
 }
 
-std::vector<std::vector<int>> Accelerator::sidepodals(std::vector<glm::vec3ext> normals, std::vector<std::pair<int, int>> edges, int workGroupSize) const
+bool compareVecs(glm::vec3 a, cl_float4 b)
+{
+	return a.x == b.x && a.y == b.y && a.z == b.z;
+}
+
+int findIndexOf(std::vector<glm::vec3ext> normals, cl_float4 f)
+{
+	for (auto i = 0; i < normals.size(); i++)
+		if (compareVecs(normals[i], f))
+			return i;
+
+	return -1;
+}
+
+std::vector<std::vector<int>> Accelerator::sidepodals(std::vector<glm::vec3ext> normals, std::vector<std::pair<int, int>> facesForEdge, int workGroupSize) const
 {
 	auto t0 = Helpers::getTime();
 
 	std::vector<cl_float4> edgeNormals;
-	edgeNormals.resize(edges.size() * 2);
+	edgeNormals.resize(facesForEdge.size() * 2);
 
-	for (auto i = 0; i < edges.size(); i++)
+	for (auto i = 0; i < facesForEdge.size(); i++)
 	{
-		auto edge = edges[i];
-		edgeNormals[i * 2] = vec3_to_float4(normals[edge.first]);
-		edgeNormals[i * 2 + 1] = vec3_to_float4(normals[edge.second]);
+		auto faces = facesForEdge[i];
+		edgeNormals[i * 2] = vec3_to_float4(normals[faces.first]);
+		edgeNormals[i * 2 + 1] = vec3_to_float4(normals[faces.second]);
 	}
 
-	auto inputSize = edges.size();
+	auto inputSize = facesForEdge.size();
 	auto globalCount = Helpers::alignSize(inputSize, workGroupSize);
+	// Align data so that threads may access memory without checks
+	for (auto i = inputSize; i < globalCount; i++) {
+		// Push 2 normals for each missing edge
+		edgeNormals.push_back(cl_float4{ 0,0,0,0 });
+		edgeNormals.push_back(cl_float4{ 0,0,0,0 });
+	}
+
+	auto t1 = Helpers::getTime();
 
 	std::vector<unsigned char> results;
 	results.resize(inputSize * inputSize);
@@ -624,12 +646,13 @@ std::vector<std::vector<int>> Accelerator::sidepodals(std::vector<glm::vec3ext> 
 	std::cout << "TIME: Sidepodals read: " << formatEventTime(read_event) << " Status: " << getEventStatus(read_event) << std::endl;
 #endif
 #ifdef TIMING_CPU
-	auto t1 = Clock::Tick();
-	std::cout << "TIME: Sidepodals CPU: " << Clock::FormatTime(t1 - t0) << std::endl;
+	auto t2 = Clock::Tick();
+	std::cout << "TIME: Sidepodals data prep: " << Clock::FormatTime(t1 - t0) << std::endl;
+	std::cout << "TIME: Sidepodals total CPU: " << Clock::FormatTime(t2 - t0) << std::endl;
 #endif
 
 	std::vector<std::vector<int>> compatibleEdges;
-	compatibleEdges.resize(edges.size());
+	compatibleEdges.resize(facesForEdge.size());
 	for (auto i = 0; i < inputSize; i++)
 	{
 		for (auto j = i; j < inputSize; j++)

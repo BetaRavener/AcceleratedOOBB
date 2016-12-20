@@ -1,6 +1,8 @@
 #include "Helpers.h"
 #include <iostream>
 #include <sstream>
+#include <cstdlib>
+#include <CL/cl.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -9,6 +11,16 @@
 #endif //WIN32
 
 #define CONTROL_OUTPUT false
+
+void Helpers::clearConsole()
+{
+#ifdef _WIN32
+		std::system("cls");
+#else
+		// Assume POSIX
+		std::system("clear");
+#endif
+}
 
 int Helpers::alignSize(int size, int alignTo)
 {
@@ -30,7 +42,7 @@ std::string Helpers::toLower(std::string s)
 	return ret;
 }
 
-void Helpers::checkErorCl(cl_int code, std::string description)
+void Helpers::checkErorCl(int code, std::string description)
 {
 	if (code != CL_SUCCESS && code != CL_DEVICE_NOT_FOUND) {
 		std::cerr << Helpers::getTime << " ERROR: " << description << " (" << code << ", " << Helpers::resolveErrorCl(code) << ")" << std::endl;
@@ -68,7 +80,7 @@ double Helpers::getTime()
 #endif
 }
 
-std::string Helpers::resolveErrorCl(cl_int error)
+std::string Helpers::resolveErrorCl(int error)
 {
 	switch (error) {
 		case CL_SUCCESS:

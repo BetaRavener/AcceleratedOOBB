@@ -9,11 +9,16 @@
 #include "Model.h"
 #include "Polyhedron.h"
 #include "OBB.h"
+#include "Helpers.h"
 
 using namespace std;
 
+#ifndef EXPERIMENTS_COUNT
+#define EXPERIMENTS_COUNT 5
+#endif
+
 Scene::Scene() {
-	_pointCloudSize = 10000;
+	_pointCloudSize = 0;
 	_wireframeBox = false;
 	_wireframeHull = false;
 	_pointSize = 5;
@@ -80,22 +85,26 @@ vector<glm::vec3> Scene::buildBoundingBox(glm::vec3 center, glm::vec3 axes[], fl
 
 void runCL(std::vector<glm::vec3> points)
 {
-	Accelerator acc;
+	std::cout << "\n\n\n### BENCHMARKING ###" << std::endl;
+	auto acc = Accelerator();
 	OOBB oobb;
-	for (auto i = 0; i < 1; i++) {
+	OBB obb;
+	auto polyhedron = Polyhedron::ConvexHull(&points[0], points.size());
+
+	for (auto i = 0; i < EXPERIMENTS_COUNT; i++) {
 		cout << "Run " << i + 1 << ": " << std::endl;
 		oobb = acc.mainRun(points, 256);
+		obb = OBB::OptimalEnclosingOBB(polyhedron, &acc);
 	}
 
-	std::cout << "Accelerated results:\n" << oobb << std::endl;
-
-	auto polyhedron = Polyhedron::ConvexHull(&points[0], points.size());
-	auto obb = OBB::OptimalEnclosingOBB(polyhedron, true);
+	std::cout << "Accelerated results:\nPCA OBB:\n" << oobb << "\nPaper OBB:\n" << obb << std::endl;
 }
 
 void Scene::prepareScene(std::vector<glm::vec3>& pointCloudVertices)
 {
-	runCL(pointCloudVertices);
+	Helpers::clearConsole();
+	std::cout << "### LOADING NEW MODEL ###" << std::endl;
+
 
 	auto cpu = Cpu();
 
@@ -104,9 +113,6 @@ void Scene::prepareScene(std::vector<glm::vec3>& pointCloudVertices)
 	glBindVertexArray(_pointsVao);
 	glBindBuffer(GL_ARRAY_BUFFER, _pointsVbo);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3)*pointCloudVertices.size(), &pointCloudVertices[0], GL_STATIC_DRAW);
-
-	//std::thread first(runCL, pointCloudVertices);
-	//first.detach();
 
 	auto polyhedron = Polyhedron::ConvexHull(&pointCloudVertices[0], pointCloudVertices.size());
 	std::vector<int> indices;
@@ -121,12 +127,13 @@ void Scene::prepareScene(std::vector<glm::vec3>& pointCloudVertices)
 	_hullSize = indices.size();
 
 	// Assemble bounding box
+	auto obb = OBB::OptimalEnclosingOBB(polyhedron, nullptr);
 	auto oobb = cpu.CreateOOBB(pointCloudVertices);
 	auto boxVerticesPCA = buildBoundingBox(oobb.center, oobb.axes, oobb.minimums, oobb.maximums);
 
-	auto obb = OBB::OptimalEnclosingOBB(polyhedron, false);
 	auto boxVerticesPaper = buildBoundingBoxPaper(obb);
-	std::cout << "CPU results:\n" << oobb << std::endl;
+	std::cout << "CPU results:\nPCA OBB:\n" << oobb << "\nPaper OBB:\n" << obb << std::endl;
+	std::cout << "The ratio of volumes PCA/Paper is: " << oobb.volume() / obb.Volume() << std::endl;
 
 	glBindVertexArray(_boxVao[0]);
 	glBindBuffer(GL_ARRAY_BUFFER, _boxVbo[0]);
@@ -138,7 +145,11 @@ void Scene::prepareScene(std::vector<glm::vec3>& pointCloudVertices)
 
 	glUseProgram(0);
 
+	_camera.SetLooakAt(oobb.center);
+	updateViewMatrix();
 	_pointCloudSize = pointCloudVertices.size();
+
+	runCL(pointCloudVertices);
 }
 
 std::vector<glm::vec3> Scene::loadModel(std::string fileName, float scale)
@@ -341,23 +352,25 @@ void Scene::onKeyPress(SDL_Keycode key, Uint16 mod){
 			loadModel("budha.data", 10);
 			break;
 		case SDLK_4: {
-			auto pointCloudVertices = generator.CreatePointCloud(50000);
+			auto pointCloudVertices = generator.CreatePointCloudBox(50000);
 			prepareScene(pointCloudVertices);
 			break;
 		}
 		case SDLK_5: {
-			auto pointCloudVertices = generator.CreatePointCloud(500000);
+			auto pointCloudVertices = generator.CreatePointCloudBox(500000);
 			prepareScene(pointCloudVertices);
 			break;
 		}
 		case SDLK_6: {
-			auto pointCloudVertices = generator.CreatePointCloud(5000000);
+			auto pointCloudVertices = generator.CreatePointCloudBall(50000);
 			prepareScene(pointCloudVertices);
 			break;
 		}
-		case SDLK_7:
-			loadModel("teapot.data", 2);
+		case SDLK_7: {
+			auto pointCloudVertices = generator.CreatePointCloudBall(500000);
+			prepareScene(pointCloudVertices);
 			break;
+		}
 		default: break;
 	}
 }
