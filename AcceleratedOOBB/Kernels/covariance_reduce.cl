@@ -1,22 +1,3 @@
-//_INLINE_ void atomicAdd_g_f(volatile __global float *addr, float val)
-//{
-//	union {
-//		unsigned int u32;
-//		float        f32;
-//	} next, expected, current;
-//
-//	current.f32 = *addr;
-//	do {
-//		expected.f32 = current.f32;
-//		next.f32 = expected.f32 + val;
-//
-//		// If the current value is not same as expected, write occured and
-//		// adding float needs to be repeated
-//		current.u32 = atomic_cmpxchg((volatile __global unsigned int *)addr,
-//			expected.u32, next.u32);
-//	} while (current.u32 != expected.u32);
-//}
-
 __kernel void cov_reduce(__global float *vec, __global float *result, __local float *local_mem, int size, int align, int nextAlign, float multiplier)
 {
 	int global_id = (int)get_global_id(0);

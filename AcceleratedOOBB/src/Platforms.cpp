@@ -3,6 +3,8 @@
 #include <iostream>
 #include <algorithm>
 
+#define INTEL_EXPERIMENTAL
+
 void Platforms::printAllInfos()
 {
 	int code;
@@ -84,6 +86,15 @@ cl::Device Platforms::getCpu()
 	Helpers::checkErorCl(cl::Platform::get(&platforms), "cl::Platform::get");
 	for (auto platform : platforms)
 	{
+		auto pName = platform.getInfo<CL_PLATFORM_NAME>(&code);
+		Helpers::checkErorCl(code, "cl::Platform::getInfo<CL_PLATFORM_NAME>");
+		auto pNameLower = Helpers::toLower(pName);
+
+#ifdef INTEL_EXPERIMENTAL
+		if (pNameLower.find("intel") != std::string::npos && pNameLower.find("experimental") == std::string::npos)
+			continue;
+#endif
+
 		// Get platform devices count
 		Helpers::checkErorCl(platform.getDevices(CL_DEVICE_TYPE_CPU, &platform_devices), "getDevices");
 		if (platform_devices.empty())
@@ -122,7 +133,9 @@ cl::Device Platforms::getGpu(std::string vendorLowercase)
 			Helpers::checkErorCl(code, "cl::Device::getInfo<CL_DEVICE_NAME>");
 
 			auto dNameLower = Helpers::toLower(dName);
-			if (vendorLowercase.empty() || pNameLower.find(vendorLowercase) || dNameLower.find(vendorLowercase))
+			if (vendorLowercase.empty() ||
+				pNameLower.find(vendorLowercase) != std::string::npos ||
+				dNameLower.find(vendorLowercase) != std::string::npos)
 				return device;
 
 		}

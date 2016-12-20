@@ -81,13 +81,16 @@ vector<glm::vec3> Scene::buildBoundingBox(glm::vec3 center, glm::vec3 axes[], fl
 void runCL(std::vector<glm::vec3> points)
 {
 	auto acc = Accelerator();
-	OOBB obb;
-	for (auto i = 0; i < 1; i++) {
+	OOBB oobb;
+	for (auto i = 0; i < 0; i++) {
 		cout << "Run " << i + 1 << ": " << std::endl;
-		obb = acc.mainRun(points, 256);
+		oobb = acc.mainRun(points, 256);
 	}
 
-	std::cout << "Accelerated results:\n" << obb << std::endl;
+	std::cout << "Accelerated results:\n" << oobb << std::endl;
+
+	auto polyhedron = Polyhedron::ConvexHull(&points[0], points.size());
+	auto obb = OBB::OptimalEnclosingOBB(polyhedron, true);
 }
 
 void Scene::prepareScene(std::vector<glm::vec3>& pointCloudVertices)
@@ -119,7 +122,7 @@ void Scene::prepareScene(std::vector<glm::vec3>& pointCloudVertices)
 	auto oobb = cpu.CreateOOBB(pointCloudVertices);
 	auto boxVerticesPCA = buildBoundingBox(oobb.center, oobb.axes, oobb.minimums, oobb.maximums);
 
-	auto obb = OBB::OptimalEnclosingOBB(polyhedron);
+	auto obb = OBB::OptimalEnclosingOBB(polyhedron, false);
 	auto boxVerticesPaper = buildBoundingBoxPaper(obb);
 	std::cout << "CPU results:\n" << oobb << std::endl;
 

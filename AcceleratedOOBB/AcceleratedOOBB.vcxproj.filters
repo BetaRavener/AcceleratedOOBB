@@ -107,6 +107,9 @@
     <None Include="Kernels\center_points.cl">
       <Filter>Kernels</Filter>
     </None>
+    <None Include="Kernels\sidepodal.cl">
+      <Filter>Kernels</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\BaseApp.h">

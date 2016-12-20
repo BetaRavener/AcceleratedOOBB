@@ -6,6 +6,7 @@
 #include <memory>
 
 #include "OOBB.h"
+#include "glmext.h"
 
 namespace cl
 {
@@ -23,6 +24,7 @@ class Accelerator
 {
 public:
 	Accelerator();
+	~Accelerator();
 
 	cl::Buffer Accelerator::computeCovarianceMatrix(int workGroupSize, cl::Buffer &dataBuffer, int inputSize) const;
 	cl::Buffer computeMinMax(cl::Buffer &points, cl::Buffer &eigens, int inputSize, int workGroupSize) const;
@@ -30,6 +32,8 @@ public:
 	OOBB mainRun(std::vector<glm::vec3> &input, int workGroupSize);
 	std::pair<cl::Buffer, glm::vec3> computeMean(std::vector<glm::vec3> &input, int workGroupSize) const;
 	void Accelerator::centerPoints(cl::Buffer & points, int workGroupSize, int inputSize, glm::vec3 & centroid) const;
+
+	std::vector<std::vector<int>> sidepodals(std::vector<glm::vec3ext> normals, std::vector<std::pair<int, int>> edges, int workGroupSize) const;
 
 private:
 	int threadCount;
@@ -40,7 +44,7 @@ private:
 	std::shared_ptr<cl::Kernel> sumKernel, centerKernel, covKernel;
 	std::shared_ptr<cl::Kernel> covReductionKernel, eigenKernel;
 	std::shared_ptr<cl::Kernel> projKernel, projReductionKernel;
-	std::shared_ptr<cl::Buffer> dataBuffer, centerBuffer, covBuffer, minMaxBuffer;
+	std::shared_ptr<cl::Kernel> sidepodalKernel;
 };
 
 #endif

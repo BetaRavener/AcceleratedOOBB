@@ -17,10 +17,11 @@ ProgramCL::ProgramCL(cl::Device device, cl::Context context, std::vector<std::st
 		clSources.push_back(std::pair<const char *, size_t>(contents.back().c_str(), contents.back().size()));
 	}
 
-	_program = cl::Program(_context, clSources);
+	cl_int codes[2];
+	_program = cl::Program(_context, clSources, codes);
+	Helpers::checkErorCl(codes[0], "clProgram");
 
 	// build program
-	cl_int codes[2];
 	if ((codes[0] = _program.build(std::vector<cl::Device>(1, _device), "", nullptr, nullptr)) == CL_BUILD_PROGRAM_FAILURE)
 	{
 		std::cerr << "Build log:\n %s" << _program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(_device, &codes[1]).c_str();

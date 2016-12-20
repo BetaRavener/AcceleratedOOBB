@@ -20,6 +20,8 @@
 #include <random>
 #include "MathLog.h"
 #include "../Clock.h"
+#include "Accelerator.h"
+#include <iostream>
 
 #define FLOAT_INF INFINITY
 #define DIR_VEC vec
@@ -276,14 +278,14 @@ namespace
 }
 
 
-OBB OBB::OptimalEnclosingOBB(const vec *pointArray, int numPoints)
+OBB OBB::OptimalEnclosingOBB(const vec *pointArray, int numPoints, bool gpu)
 {
 	// Precomputation: Generate the convex hull of the input point set. This is because
 	// we need vertex-edge-face connectivity information about the convex hull shape, and
 	// this also allows discarding all points in the interior of the input hull, which
 	// are irrelevant.
 	Polyhedron convexHull = Polyhedron::ConvexHull(pointArray, numPoints);
-	return OptimalEnclosingOBB(convexHull);
+	return OptimalEnclosingOBB(convexHull, gpu);
 }
 
 bool IsVertexAntipodalToEdge(const Polyhedron &convexHull, int vi, const std::vector<int> &neighbors, const vec &f1a, const vec &f1b)
@@ -333,7 +335,16 @@ bool IsVertexAntipodalToEdge(const Polyhedron &convexHull, int vi, const std::ve
 	return true;
 }
 
-OBB OBB::OptimalEnclosingOBB(const Polyhedron &convexHull)
+int calcTotalCompanion(std::vector<std::vector<int>> compEdges)
+{
+	auto acc = 0;
+	for (auto edge : compEdges)
+		acc += edge.size();
+
+	return acc;
+}
+
+OBB OBB::OptimalEnclosingOBB(const Polyhedron &convexHull, bool gpu)
 {
 	/* Outline of the algorithm:
 	  0. Compute the convex hull of the point set (given as input to this function) O(VlogV)
@@ -342,7 +353,7 @@ OBB OBB::OptimalEnclosingOBB(const Polyhedron &convexHull)
 	  3. Compute edge adjacency data, i.e. given an edge, return the two indices of its neighboring faces. O(V)
 	  4. Precompute antipodal vertices for each edge. O(A*ElogV), where A is the size of antipodal vertices per edge. A ~ O(1) on average.
 	  5. Precompute all sidepodal edges for each edge. O(E*S), where S is the size of sidepodal edges per edge. S ~ O(sqrtE) on average.
-	     - Sort the sidepodal edges to a linear order so that it's possible to do fast set intersection computations on them. O(E*S*logS), or O(E*sqrtE*logE).
+		 - Sort the sidepodal edges to a linear order so that it's possible to do fast set intersection computations on them. O(E*S*logS), or O(E*sqrtE*logE).
 	  6. Test all configurations where all three edges are on adjacent faces. O(E*S^2) = O(E^2) or if smart with graph search, O(ES) = O(E*sqrtE)?
 	  7. Test all configurations where two edges are on opposing faces, and the third one is on a face adjacent to the two. O(E*sqrtE*logV)?
 	  8. Test all configurations where two edges are on the same face (OBB aligns with a face of the convex hull). O(F*sqrtE*logV).
@@ -363,7 +374,7 @@ OBB OBB::OptimalEnclosingOBB(const Polyhedron &convexHull)
 	//std::vector<vec_storage> faceNormals;
 	VecArray faceNormals;
 	faceNormals.reserve(convexHull.NumFaces());
-	for(int i = 0; i < convexHull.NumFaces(); ++i) // O(F)
+	for (int i = 0; i < convexHull.NumFaces(); ++i) // O(F)
 	{
 		if (convexHull.f[i].v.size() < 3)
 		{
@@ -384,7 +395,7 @@ OBB OBB::OptimalEnclosingOBB(const Polyhedron &convexHull)
 	edges.reserve(convexHull.v.size() * 2);
 	// For each edge i, specifies the two face indices f0 and f1 that share that edge.
 	std::vector<std::pair<int, int> > facesForEdge;
-	facesForEdge.reserve(convexHull.v.size()*2);
+	facesForEdge.reserve(convexHull.v.size() * 2);
 	// For each vertex pair (v0, v1) through which there is an edge, specifies the index i of the edge that passes through them.
 	// This map contains duplicates, so both (v0, v1) and (v1, v0) map to the same edge index.
 	// Currently use a O(V^2) array for this data structure for performance.
@@ -401,23 +412,23 @@ OBB OBB::OptimalEnclosingOBB(const Polyhedron &convexHull)
 	{
 		const Polyhedron::Face &f = convexHull.f[i];
 		int v0 = f.v.back();
-		for(size_t j = 0; j < f.v.size(); ++j)
+		for (size_t j = 0; j < f.v.size(); ++j)
 		{
 			int v1 = f.v[j];
 			std::pair<int, int> e = std::make_pair(v0, v1);
 			//std::unordered_map<std::pair<int, int>, int, hash_edge>::const_iterator iter = vertexPairsToEdges.find(e);
 			//if (iter == vertexPairsToEdges.end())
-			if (vertexPairsToEdges[v0*convexHull.v.size()+v1] == EMPTY_EDGE)
+			if (vertexPairsToEdges[v0*convexHull.v.size() + v1] == EMPTY_EDGE)
 			{
 				//vertexPairsToEdges[e] = (int)edges.size();
-				vertexPairsToEdges[v0*convexHull.v.size()+v1] = (unsigned int)edges.size();
-				vertexPairsToEdges[v1*convexHull.v.size()+v0] = (unsigned int)edges.size();
-//				vertexPairsToEdges[std::make_pair(v1, v0)] = (int)edges.size(); // Mark that we know we have seen v0->v1 already.
+				vertexPairsToEdges[v0*convexHull.v.size() + v1] = (unsigned int)edges.size();
+				vertexPairsToEdges[v1*convexHull.v.size() + v0] = (unsigned int)edges.size();
+				//				vertexPairsToEdges[std::make_pair(v1, v0)] = (int)edges.size(); // Mark that we know we have seen v0->v1 already.
 				edges.push_back(e);
 				facesForEdge.push_back(std::make_pair((int)i, -1)); // The -1 will be filled once we see the edge v1->v0.
 			}
 			else
-				facesForEdge[vertexPairsToEdges[v0*(int)convexHull.v.size()+v1]/*iter->second*/].second = (int)i;
+				facesForEdge[vertexPairsToEdges[v0*(int)convexHull.v.size() + v1]/*iter->second*/].second = (int)i;
 			v0 = v1;
 		}
 	}
@@ -431,9 +442,9 @@ OBB OBB::OptimalEnclosingOBB(const Polyhedron &convexHull)
 
 	TIMING_TICK(
 		int numInternalEdges = 0;
-		for(size_t i = 0; i < edges.size(); ++i)
-			if (IS_INTERNAL_EDGE(i))
-				++numInternalEdges;
+	for (size_t i = 0; i < edges.size(); ++i)
+		if (IS_INTERNAL_EDGE(i))
+			++numInternalEdges;
 	);
 	TIMING("%d/%d (%.2f%%) edges are internal and will be ignored.", numInternalEdges, (int)edges.size(), numInternalEdges * 100.0 / edges.size());
 
@@ -459,7 +470,7 @@ OBB OBB::OptimalEnclosingOBB(const Polyhedron &convexHull)
 
 	TIMING_TICK(
 		tick_t tz = Clock::Tick();
-		unsigned long long numSpatialStrips = 0);
+	unsigned long long numSpatialStrips = 0);
 
 	// The currently best variant for establishing a spatially coherent traversal order.
 	std::vector<int> spatialFaceOrder;
@@ -471,11 +482,11 @@ OBB OBB::OptimalEnclosingOBB(const Polyhedron &convexHull)
 		std::vector<unsigned int> visitedEdges(edges.size());
 		std::vector<unsigned int> visitedFaces(convexHull.f.size());
 		traverseStackEdges.push_back(std::make_pair(0, adjacencyData[0].front()));
-		while(!traverseStackEdges.empty())
+		while (!traverseStackEdges.empty())
 		{
 			std::pair<int, int> e = traverseStackEdges.back();
 			traverseStackEdges.pop_back();
-			int thisEdge = vertexPairsToEdges[e.first*convexHull.v.size()+e.second];
+			int thisEdge = vertexPairsToEdges[e.first*convexHull.v.size() + e.second];
 			if (visitedEdges[thisEdge])
 				continue;
 			visitedEdges[thisEdge] = 1;
@@ -492,15 +503,15 @@ OBB OBB::OptimalEnclosingOBB(const Polyhedron &convexHull)
 			TIMING_TICK(
 				if (prevEdgeEnd != e.first)
 					++numSpatialStrips;
-				prevEdgeEnd = e.second;
+			prevEdgeEnd = e.second;
 			);
 
 			int v0 = e.second;
 			size_t sizeBefore = traverseStackEdges.size();
-			for(size_t i = 0; i < adjacencyData[v0].size(); ++i)
+			for (size_t i = 0; i < adjacencyData[v0].size(); ++i)
 			{
 				int v1 = adjacencyData[v0][i];
-				int e1 = vertexPairsToEdges[v0*convexHull.v.size()+v1];
+				int e1 = vertexPairsToEdges[v0*convexHull.v.size() + v1];
 				if (visitedEdges[e1])
 					continue;
 				traverseStackEdges.push_back(std::make_pair(v0, v1));
@@ -511,7 +522,7 @@ OBB OBB::OptimalEnclosingOBB(const Polyhedron &convexHull)
 			{
 				std::uniform_int_distribution<> rngRange(0, nNewEdges - 1); // define the range
 				auto r = rngRange(eng);
-				std::swap(traverseStackEdges.back(), traverseStackEdges[sizeBefore+r]);
+				std::swap(traverseStackEdges.back(), traverseStackEdges[sizeBefore + r]);
 			}
 		}
 	}
@@ -519,7 +530,7 @@ OBB OBB::OptimalEnclosingOBB(const Polyhedron &convexHull)
 
 	TIMING_TICK(tick_t tx = Clock::Tick());
 	TIMING("SpatialOrder: %f msecs, search over %d edges is in %llu strips, approx. %f edges/strip",
-		Clock::TimespanToMillisecondsF(tz, tx), (int)edges.size(), numSpatialStrips, (double)edges.size()/numSpatialStrips);
+		Clock::TimespanToMillisecondsF(tz, tx), (int)edges.size(), numSpatialStrips, (double)edges.size() / numSpatialStrips);
 #pragma endregion SpatialFaceOrder
 
 #pragma region Antipodal
@@ -531,49 +542,58 @@ OBB OBB::OptimalEnclosingOBB(const Polyhedron &convexHull)
 	{
 		vec f1a = faceNormals[facesForEdge[i].first];
 		vec f1b = faceNormals[facesForEdge[i].second];
-		for(size_t j = 0; j < convexHull.v.size(); ++j) // O(V)
+		for (size_t j = 0; j < convexHull.v.size(); ++j) // O(V)
 			if (IsVertexAntipodalToEdge(convexHull, j, adjacencyData[j], f1a, f1b))
 				antipodalPointsForEdge[i].push_back(j);
 	}
 
 	TIMING_TICK(
 		tick_t t4 = Clock::Tick();
-		size_t numTotalAntipodals = 0;
-		for (size_t i = 0; i < antipodalPointsForEdge.size(); ++i)
-			numTotalAntipodals += antipodalPointsForEdge[i].size();
+	size_t numTotalAntipodals = 0;
+	for (size_t i = 0; i < antipodalPointsForEdge.size(); ++i)
+		numTotalAntipodals += antipodalPointsForEdge[i].size();
 	);
-	TIMING("Antipodalpoints: %f msecs (avg edge has %.3f antipodal points)", Clock::TimespanToMillisecondsF(tx, t4), (float)numTotalAntipodals/edges.size());
+	TIMING("Antipodalpoints: %f msecs (avg edge has %.3f antipodal points)", Clock::TimespanToMillisecondsF(tx, t4), (float)numTotalAntipodals / edges.size());
 #pragma endregion Antipodal
 
 #pragma region Sidepodal
 	// Stores for each edge i the list of all sidepodal edge indices j that it can form an OBB with.
 	std::vector<std::vector<int> > compatibleEdges(edges.size());
-
-	// Precomputation: Compute all potential companion edges for each edge.
-	// This is O(E^2)
-	// Important! And edge can be its own companion edge! So have each edge test itself during iteration.
-	for(size_t i = 0; i < edges.size(); ++i) // O(E)
+	if (!gpu)
 	{
-		vec f1a = faceNormals[facesForEdge[i].first];
-		vec f1b = faceNormals[facesForEdge[i].second];
-		for(size_t j = i; j < edges.size(); ++j) // O(E)
-			if (AreEdgesCompatibleForOBB(f1a, f1b, faceNormals[facesForEdge[j].first], faceNormals[facesForEdge[j].second]))
-			{
-				compatibleEdges[i].push_back(j);
+		// Precomputation: Compute all potential companion edges for each edge.
+		// This is O(E^2)
+		// Important! And edge can be its own companion edge! So have each edge test itself during iteration.
+		for (size_t i = 0; i < edges.size(); ++i) // O(E)
+		{
+			vec f1a = faceNormals[facesForEdge[i].first];
+			vec f1b = faceNormals[facesForEdge[i].second];
+			for (size_t j = i; j < edges.size(); ++j) // O(E)
+				if (AreEdgesCompatibleForOBB(f1a, f1b, faceNormals[facesForEdge[j].first], faceNormals[facesForEdge[j].second]))
+				{
+					compatibleEdges[i].push_back(j);
 
-				if (i != j)
-					compatibleEdges[j].push_back(i);
-			}
-	}
+					if (i != j)
+						compatibleEdges[j].push_back(i);
+				}
+		}
 
-	TIMING_TICK(
-		tick_t t5 = Clock::Tick();
+		TIMING_TICK(
+			tick_t t5 = Clock::Tick();
 		size_t numTotalEdges = 0;
-		for(size_t i = 0; i < compatibleEdges.size(); ++i)
+		for (size_t i = 0; i < compatibleEdges.size(); ++i)
 			numTotalEdges += compatibleEdges[i].size();
-	);
-	TIMING("Companionedges: %f msecs (%d edges have on average %d companion edges each)", Clock::TimespanToMillisecondsF(t4, t5), (int)compatibleEdges.size(), (int)(numTotalEdges / compatibleEdges.size()));
-	TIMING_TICK(t5 = Clock::Tick());
+		);
+		TIMING("Companionedges: %f msecs (%d edges have on average %d companion edges each)", Clock::TimespanToMillisecondsF(t4, t5), (int)compatibleEdges.size(), (int)(numTotalEdges / compatibleEdges.size()));
+		TIMING_TICK(t5 = Clock::Tick());
+	}
+	else
+	{
+		//TODO: free somehow
+		auto acc = new Accelerator();
+		compatibleEdges = acc->sidepodals(faceNormals, edges, 4);
+	}
+	std::cout << "Total companion: " << calcTotalCompanion(compatibleEdges) << std::endl;
 #pragma endregion Sidepodal
 
 #pragma region Faceconfigs

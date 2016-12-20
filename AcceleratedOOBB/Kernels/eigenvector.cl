@@ -1,3 +1,5 @@
+#define M_PI 3.14159265359f
+
 float determinant(float a, float b, float c, float d, float e, float f, float g, float h, float i)
 {
 	float x1 = a * e * i;
@@ -52,14 +54,14 @@ __kernel void compute_eigens(__global float *covariance, __global float * eigens
 			float r = determinant((1 / p) * (a - q), (1 / p) * b, (1 / p) * c, (1 / p) * d, 
 				(1 / p) * (e - q), (1 / p) * f, (1 / p) * g, (1 / p) * h, (1 / p) * (i - q)) / 2;
 
-			float phi = 0.0;
+			float phi = 0.0f;
 			if (r <= -1)
 			{
 				phi = M_PI / 3;
 			}
 			else if (r >= 1)
 			{
-				phi = 0.0;
+				phi = 0.0f;
 			}
 			else
 			{
