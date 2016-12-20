@@ -1,7 +1,7 @@
 #pragma once
 #ifndef CLOCK_H
 #define CLOCK_H
-#include "src/Helpers.h"
+#include "Helpers.h"
 #include <sstream>
 
 typedef double tick_t;

@@ -1,6 +1,6 @@
 #include "Accelerator.h"
 
-#include "../Clock.h"
+#include "Clock.h"
 #include "Common.h"
 #include "Cpu.h"
 #include "Helpers.h"

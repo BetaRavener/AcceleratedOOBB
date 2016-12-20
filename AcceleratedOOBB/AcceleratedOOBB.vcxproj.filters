@@ -163,10 +163,10 @@
     <ClInclude Include="src\MathLog.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Clock.h">
+    <ClInclude Include="src\Common.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\Common.h">
+    <ClInclude Include="src\Clock.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

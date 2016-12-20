@@ -19,7 +19,7 @@
 #include "float3x3.h"
 #include <random>
 #include "MathLog.h"
-#include "../Clock.h"
+#include "Clock.h"
 #include "Accelerator.h"
 #include <iostream>
 
