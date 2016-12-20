@@ -2,8 +2,6 @@
 #include "Cpu.h"
 #include <random>
 
-
-
 Generator::Generator(glm::vec3 min, glm::vec3 max, glm::vec3 axis)
 {
 	_min = min;

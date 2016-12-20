@@ -34,11 +34,11 @@ std::vector<glm::vec3> Cpu::CreateEigens(std::vector<glm::vec3> & points)
 	double eigenVectors[3][3];
 	double values[3];
 
-	eigen_decomposition(matrix, eigenVectors, values);
+	//eigen_decomposition(matrix, eigenVectors, values);
 
-	//auto eigenVector1 = glm::vec3(eigenVectors[0][0], eigenVectors[1][0], eigenVectors[2][0]);
-	//auto eigenVector2 = glm::vec3(eigenVectors[0][1], eigenVectors[1][1], eigenVectors[2][1]);
-	//auto eigenVector3 = glm::cross(eigenVector1, eigenVector2);
+	auto eigenVector1 = glm::vec3(eigenVectors[0][0], eigenVectors[1][0], eigenVectors[2][0]);
+	auto eigenVector2 = glm::vec3(eigenVectors[0][1], eigenVectors[1][1], eigenVectors[2][1]);
+	auto eigenVector3 = glm::cross(eigenVector1, eigenVector2);
 
 	return eigenVecs;
 }
