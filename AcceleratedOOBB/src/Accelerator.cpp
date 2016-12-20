@@ -79,7 +79,9 @@ Accelerator::Accelerator()
 	std::cout << std::endl;
 
 	//===========================================================================================
-	context = std::make_shared<cl::Context>(cl::Context(*device));
+	cl_int code;
+	context = std::make_shared<cl::Context>(cl::Context(*device, nullptr, nullptr, nullptr, &code));
+	Helpers::checkErorCl(code, "clContext");
 	queue = std::make_shared<cl::CommandQueue>(cl::CommandQueue(*context, *device, PROFILE_FLAG));
 
 	cl_uint computeUnitCount;
@@ -95,7 +97,8 @@ Accelerator::Accelerator()
 		"../Kernels/covariance_mat.cl",
 		"../Kernels/covariance_reduce.cl",
 		"../Kernels/eigenvector.cl",
-		"../Kernels/projection_mat.cl" }));
+		"../Kernels/projection_mat.cl",
+		"../Kernels/sidepodal.cl"}));
 
 	sumKernel = std::make_shared<cl::Kernel>(program->getKernel("points_sum"));
 	centerKernel = std::make_shared<cl::Kernel>(program->getKernel("center_points"));
@@ -104,6 +107,11 @@ Accelerator::Accelerator()
 	eigenKernel = std::make_shared<cl::Kernel>(program->getKernel("compute_eigens"));
 	projKernel = std::make_shared<cl::Kernel>(program->getKernel("projection_matrix"));
 	projReductionKernel = std::make_shared<cl::Kernel>(program->getKernel("reduction_minmax"));
+	sidepodalKernel = std::make_shared<cl::Kernel>(program->getKernel("sidepodal"));
+}
+
+Accelerator::~Accelerator()
+{
 }
 
 OOBB Accelerator::mainRun(std::vector<glm::vec3> &input, int workGroupSize)
@@ -532,5 +540,105 @@ cl::Buffer Accelerator::computeMinMax(cl::Buffer &points, cl::Buffer &eigens, in
 #endif
 
 	return *inputBuffer;
+}
+
+__inline cl_float4 vec3_to_float4(glm::vec3ext v)
+{
+	cl_float4 c;
+	c.x = v.x;
+	c.y = v.y;
+	c.z = v.z;
+	c.w = 0.f;
+	return c;
+}
+
+std::vector<std::vector<int>> Accelerator::sidepodals(std::vector<glm::vec3ext> normals, std::vector<std::pair<int, int>> edges, int workGroupSize) const
+{
+	cl_int code;
+
+	auto t0 = Helpers::getTime();
+
+	std::vector<cl_float4> edgeNormals;
+	edgeNormals.resize(edges.size() * 2);
+
+	for (auto i = 0; i < edges.size(); i++)
+	{
+		auto edge = edges[i];
+		edgeNormals[i * 2] = vec3_to_float4(normals[edge.first]);
+		edgeNormals[i * 2 + 1] = vec3_to_float4(normals[edge.second]);
+	}
+
+	auto inputSize = edges.size();
+	auto globalCount = Helpers::alignSize(inputSize, workGroupSize);
+
+	std::vector<unsigned char> results;
+	results.resize(inputSize * inputSize);
+
+	//===========================================================================================
+	cl_mem_flags flags = CL_MEM_READ_WRITE;
+	auto dataBufferSize = edgeNormals.size() * sizeof(cl_float4);
+	auto resultBufferSize = results.size() * sizeof(cl_uchar);
+
+	auto dataBuffer = cl::Buffer(*context, flags, dataBufferSize);
+	auto resultBuffer = cl::Buffer(*context, flags, resultBufferSize);
+
+	//===========================================================================================
+	sidepodalKernel->setArg(0, dataBuffer);
+	sidepodalKernel->setArg(1, resultBuffer);
+	sidepodalKernel->setArg(2, workGroupSize * 4 * sizeof(cl_float4), nullptr);
+	sidepodalKernel->setArg(3, inputSize);
+
+	cl::UserEvent write_event(*context, &code);
+	Helpers::checkErorCl(code, "clCreateUserEvent write_event");
+	cl::UserEvent kernel_event(*context, &code);
+	Helpers::checkErorCl(code, "clCreateUserEvent kernel_event");
+	cl::UserEvent read_event(*context, &code);
+	Helpers::checkErorCl(code, "clCreateUserEvent read_event");
+
+	//===========================================================================================
+	cl::NDRange local(workGroupSize, workGroupSize);
+	cl::NDRange global(globalCount, globalCount);
+
+	// Write data
+	Helpers::checkErorCl(queue->enqueueWriteBuffer(dataBuffer, false, 0, dataBufferSize, &edgeNormals[0], nullptr, &write_event), 
+		"Sidepodal write");
+
+	// Run kernel
+	Helpers::checkErorCl(queue->enqueueNDRangeKernel(*sidepodalKernel, 0, global, local, nullptr, &kernel_event), 
+		"Sidepodal kernel");
+
+	// Read results
+	Helpers::checkErorCl(queue->enqueueReadBuffer(resultBuffer, false, 0, resultBufferSize, &results[0], nullptr, &read_event), 
+		"Sidepodal read");
+
+	Helpers::checkErorCl(queue->finish(), "clFinish");
+
+#ifdef TIMING_GPU
+	std::cout << "TIME: Sidepodals write: " << formatEventTime(write_event) << std::endl;
+	std::cout << "TIME: Sidepodals kernel: " << formatEventTime(kernel_event) << std::endl;
+	std::cout << "TIME: Sidepodals read: " << formatEventTime(read_event) << std::endl;
+#endif
+#ifdef TIMING_CPU
+	auto t1 = Clock::Tick();
+	std::cout << "TIME: Sidepodals CPU: " << Clock::FormatTime(t1 - t0) << std::endl;
+#endif
+
+	std::vector<std::vector<int>> compatibleEdges;
+	compatibleEdges.resize(edges.size());
+	for (auto i = 0; i < inputSize; i++)
+	{
+		for (auto j = i; j < inputSize; j++)
+		{
+			if (results[i * inputSize + j])
+			{
+				compatibleEdges[i].push_back(j);
+
+				if (i != j)
+					compatibleEdges[j].push_back(i);
+			}
+		}
+	}
+
+	return compatibleEdges;
 }
 
