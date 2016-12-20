@@ -1,4 +1,4 @@
-__kernel void center_points(__global float *points, float centroid_x, float centroid_y, float centroid_z, int length, int align, int pointsCount)
+__kernel void center_points(__global float *points, float3 center, int length, int align, int pointsCount)
 {
 	const int global_id = (int)get_global_id(0);
 	const int group_id = (int)get_group_id(0);
@@ -14,13 +14,13 @@ __kernel void center_points(__global float *points, float centroid_x, float cent
 	switch (dimension)
 	{
 	case 0:
-		centroid_ = centroid_x;
+		centroid_ = center.x;
 		break;
 	case 1:
-		centroid_ = centroid_y;
+		centroid_ = center.y;
 		break;
 	case 2:
-		centroid_ = centroid_z;
+		centroid_ = center.z;
 		break;
 	}
 

@@ -299,14 +299,14 @@ void Accelerator::centerPoints(cl::Buffer & points, int workGroupSize, int input
 	auto alignedInputSize = Helpers::alignSize(inputSize, workGroupSize);
 
 	//===========================================================================================
-	centerKernel->setArg(0, points);
-	centerKernel->setArg(1, centroid.x);
-	centerKernel->setArg(2, centroid.y);
-	centerKernel->setArg(3, centroid.z);
+	cl_float3 center = { centroid.x, centroid.y, centroid.z };
 
-	centerKernel->setArg(4, alignedInputSize);
-	centerKernel->setArg(5, alignedSize);
-	centerKernel->setArg(6, inputSize);
+	centerKernel->setArg(0, points);
+	centerKernel->setArg(1, sizeof(cl_float3), &center);
+
+	centerKernel->setArg(2, alignedInputSize);
+	centerKernel->setArg(3, alignedSize);
+	centerKernel->setArg(4, inputSize);
 
 	cl::UserEvent kernel_event(*context, &code);
 	Helpers::checkErorCl(code, "clCreateUserEvent kernel_event");
