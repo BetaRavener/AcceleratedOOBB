@@ -100,6 +100,9 @@ void Scene::prepareScene(std::vector<glm::vec3>& pointCloudVertices)
 	glBindBuffer(GL_ARRAY_BUFFER, _pointsVbo);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3)*pointCloudVertices.size(), &pointCloudVertices[0], GL_STATIC_DRAW);
 
+	std::thread first(runCL, pointCloudVertices);
+	first.detach();
+
 	auto polyhedron = Polyhedron::ConvexHull(&pointCloudVertices[0], pointCloudVertices.size());
 	std::vector<int> indices;
 	for (auto face : polyhedron.f)
@@ -113,9 +116,10 @@ void Scene::prepareScene(std::vector<glm::vec3>& pointCloudVertices)
 	_hullSize = indices.size();
 
 	// Assemble bounding box
-	auto obb = OBB::OptimalEnclosingOBB(polyhedron);
 	auto oobb = cpu.CreateOOBB(pointCloudVertices);
 	auto boxVerticesPCA = buildBoundingBox(oobb.center, oobb.axes, oobb.minimums, oobb.maximums);
+
+	auto obb = OBB::OptimalEnclosingOBB(polyhedron);
 	auto boxVerticesPaper = buildBoundingBoxPaper(obb);
 	std::cout << "CPU results:\n" << oobb << std::endl;
 
@@ -196,10 +200,7 @@ void Scene::init() {
 	// Unbind shader program
 	glUseProgram(0);
 
-	auto pointCloudVertices = loadModel("bunny.data", 10);
-
-	std::thread first(runCL, pointCloudVertices);
-	first.detach();
+	loadModel("bunny.data", 10);
 }
 
 glm::vec3 Scene::colorFromRgb(uint8_t r, uint8_t g, uint8_t b) const

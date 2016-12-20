@@ -1,9 +1,11 @@
 #include "Cpu.h"
+#include "../Clock.h"
 
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include "eig3.h"
 #include <fstream>
+#include <iostream>
 
 
 std::vector<glm::vec3> Cpu::CreateEigens(std::vector<glm::vec3> & points)
@@ -42,6 +44,9 @@ std::vector<glm::vec3> Cpu::CreateEigens(std::vector<glm::vec3> & points)
 
 OOBB Cpu::CreateOOBB(std::vector<glm::vec3> & points)
 { 
+	auto t0 = Clock::Tick();
+
+
 	// Center the model into origin
 	auto centroid = ComputeCentroid(points);
 	for (auto i = 0; i < points.size(); i++)
@@ -128,6 +133,9 @@ OOBB Cpu::CreateOOBB(std::vector<glm::vec3> & points)
 	fout << eigenVector3[0] << " " << eigenVector3[1] << " " << eigenVector3[2] << std::endl;
 	fout << "-----" << std::endl;
 	fout.close();
+
+	auto t1 = Clock::Tick();
+	std::cout << "CPU IMPLEMENTATION TIME: Total time: " << Clock::FormatTime(t1 - t0) << std::endl;
 
 	return result;
 }

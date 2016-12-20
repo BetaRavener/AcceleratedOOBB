@@ -114,7 +114,7 @@ OOBB Accelerator::mainRun(std::vector<glm::vec3> &input, int workGroupSize)
 
 	auto inputSize = input.size();
 
-	auto bufferAndSum = computeMean(input, 256);
+	auto bufferAndSum = computeMean(input, workGroupSize);
 
 	auto centroid = bufferAndSum.second / static_cast<float>(inputSize);
 
@@ -197,6 +197,8 @@ std::pair<cl::Buffer, glm::vec3> Accelerator::computeMean(std::vector<glm::vec3>
 		for (auto j = 0; j < alignedInputSize; j++)
 			data[i*alignedInputSize + j] = j < inputSize ? input[j][i] : 0;
 
+	auto t2 = Clock::Tick();
+	std::cout << "TIME: Points buffer preparation: " << Clock::FormatTime(t2 - t0) << std::endl;
 	//===========================================================================================
 	cl_mem_flags flags = CL_MEM_READ_WRITE;
 	auto dataBufferSize = data.size() * sizeof(float);
@@ -258,7 +260,6 @@ std::pair<cl::Buffer, glm::vec3> Accelerator::computeMean(std::vector<glm::vec3>
 
 	// synchronize queue
 #ifdef TIMING_GPU
-	Helpers::checkErorCl(queue->finish(), "clFinish");
 	std::cout << "TIME: Vertex data write: " << formatEventTime(write_event) << std::endl;
 	std::cout << "TIME: Mean computation time: " << formatEventTime(sum_kernel_event) << std::endl;
 	std::cout << "TIME: Reduction time: " << (inputSize > 1 ? formatEventTime(reduce_kernel_event) : "skipped") << std::endl;
@@ -464,6 +465,12 @@ cl::Buffer Accelerator::computeMinMax(cl::Buffer &points, cl::Buffer &eigens, in
 	auto t0 = Helpers::getTime();
 
 	auto alignedSize = Helpers::alignSize(inputSize, workGroupSize);
+	if (alignedSize > threadCount)
+	{
+		// We have to be sure its dividable by 3
+		alignedSize = Helpers::alignSize(threadCount, workGroupSize);
+	}
+
 	int globalCount = alignedSize;
 	int groupsCount = alignedSize / workGroupSize;
 
@@ -471,16 +478,17 @@ cl::Buffer Accelerator::computeMinMax(cl::Buffer &points, cl::Buffer &eigens, in
 	cl_mem_flags flags = CL_MEM_READ_WRITE;
 	auto resultBufferSize = 6 * groupsCount * sizeof(float);
 	auto resultBuffer = cl::Buffer(*context, flags, resultBufferSize);
-	auto resultBuffer2 = cl::Buffer(*context, flags, resultBufferSize);
+	auto resultBufferSwap = cl::Buffer(*context, flags, resultBufferSize / groupsCount);
 
 	//===========================================================================================
 	projKernel->setArg(0, points);
 	projKernel->setArg(1, resultBuffer);
 	projKernel->setArg(2, eigens);
-	projKernel->setArg(3, 9, nullptr);
+	projKernel->setArg(3, 9 * sizeof(float), nullptr);
 	projKernel->setArg(4, 6 * workGroupSize * sizeof(float), nullptr);
 	projKernel->setArg(5, inputSize);
 	projKernel->setArg(6, alignedSize);
+	projKernel->setArg(7, Helpers::alignSize(inputSize, workGroupSize));
 
 	// compute results on host
 	cl::UserEvent a_event(*context, &code);
@@ -500,16 +508,16 @@ cl::Buffer Accelerator::computeMinMax(cl::Buffer &points, cl::Buffer &eigens, in
 	queue->enqueueNDRangeKernel(*projKernel, 0, global, local, nullptr, &kernel_event);
 
 	inputSize = groupsCount;
-	cl::Buffer *inputBuffer = &resultBuffer;
-	cl::Buffer *result = &resultBuffer2;
+
+	int count = 0;
 	while (groupsCount > 1)
 	{
 		alignedSize = Helpers::alignSize(inputSize, workGroupSize);
 		globalCount = alignedSize;
 		groupsCount = alignedSize / workGroupSize;
 
-		projReductionKernel->setArg(0, *inputBuffer);
-		projReductionKernel->setArg(1, *result);
+		projReductionKernel->setArg(0, resultBuffer);
+		projReductionKernel->setArg(1, resultBufferSwap);
 		projReductionKernel->setArg(2, 6 * workGroupSize * sizeof(float), nullptr);
 		projReductionKernel->setArg(3, inputSize);
 		projReductionKernel->setArg(4, alignedSize);
@@ -517,11 +525,11 @@ cl::Buffer Accelerator::computeMinMax(cl::Buffer &points, cl::Buffer &eigens, in
 		queue->enqueueNDRangeKernel(*projReductionKernel, 0, cl::NDRange(alignedSize), cl::NDRange(workGroupSize), nullptr, &kernel_event);
 
 		inputSize = groupsCount;
-		cl::Buffer *tmp = inputBuffer;
-		inputBuffer = result;
-		result = tmp;
+		Swap(resultBuffer, resultBufferSwap);
+		count++;
 	}
 
+	std::cout << "POCET CYKLU PROJECTION: " << count << std::endl;
 #ifdef TIMING_GPU
 	Helpers::checkErorCl(queue->finish(), "clFinish");
 	std::cout << "TIME: Min/Max projection: " << formatEventTime(kernel_event) << std::endl;
@@ -531,6 +539,6 @@ cl::Buffer Accelerator::computeMinMax(cl::Buffer &points, cl::Buffer &eigens, in
 	std::cout << "TIME: Projection CPU: " << Clock::FormatTime(t1 - t0) << std::endl;
 #endif
 
-	return *inputBuffer;
+	return resultBuffer;
 }
 
