@@ -8,7 +8,8 @@ class Generator
 {
 public:
 	Generator(glm::vec3 min, glm::vec3 max, glm::vec3 axis);
-	std::vector<glm::vec3> CreatePointCloud(int count) const;
+	std::vector<glm::vec3> CreatePointCloudBox(int count) const;
+	std::vector<glm::vec3> CreatePointCloudBall(int count) const;
 private:
 	glm::vec3 _min;
 	glm::vec3 _max;

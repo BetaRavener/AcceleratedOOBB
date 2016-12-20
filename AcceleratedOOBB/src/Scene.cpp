@@ -18,7 +18,7 @@ using namespace std;
 #endif
 
 Scene::Scene() {
-	_pointCloudSize = 10000;
+	_pointCloudSize = 0;
 	_wireframeBox = false;
 	_wireframeHull = false;
 	_pointSize = 5;
@@ -351,23 +351,25 @@ void Scene::onKeyPress(SDL_Keycode key, Uint16 mod){
 			loadModel("budha.data", 10);
 			break;
 		case SDLK_4: {
-			auto pointCloudVertices = generator.CreatePointCloud(50000);
+			auto pointCloudVertices = generator.CreatePointCloudBox(50000);
 			prepareScene(pointCloudVertices);
 			break;
 		}
 		case SDLK_5: {
-			auto pointCloudVertices = generator.CreatePointCloud(500000);
+			auto pointCloudVertices = generator.CreatePointCloudBox(500000);
 			prepareScene(pointCloudVertices);
 			break;
 		}
 		case SDLK_6: {
-			auto pointCloudVertices = generator.CreatePointCloud(5000000);
+			auto pointCloudVertices = generator.CreatePointCloudBall(50000);
 			prepareScene(pointCloudVertices);
 			break;
 		}
-		case SDLK_7:
-			loadModel("teapot.data", 2);
+		case SDLK_7: {
+			auto pointCloudVertices = generator.CreatePointCloudBall(500000);
+			prepareScene(pointCloudVertices);
 			break;
+		}
 		default: break;
 	}
 }
