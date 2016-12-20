@@ -3,7 +3,7 @@
 #include <iostream>
 #include <algorithm>
 
-#define INTEL_EXPERIMENTAL
+//#define INTEL_EXPERIMENTAL
 
 void Platforms::printAllInfos()
 {

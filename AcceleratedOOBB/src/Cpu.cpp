@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iostream>
 
+#define TIMING_CPU
 
 std::vector<glm::vec3> Cpu::CreateEigens(std::vector<glm::vec3> & points)
 {
@@ -44,6 +45,10 @@ std::vector<glm::vec3> Cpu::CreateEigens(std::vector<glm::vec3> & points)
 
 OOBB Cpu::CreateOOBB(std::vector<glm::vec3> & points)
 { 
+#ifdef TIMING_CPU
+	std::cout << "#### PCA CPU IMPLEMENTATION TIMING BEGIN ####" << std::endl;
+#endif
+
 	auto t0 = Clock::Tick();
 
 
@@ -52,29 +57,43 @@ OOBB Cpu::CreateOOBB(std::vector<glm::vec3> & points)
 	for (auto i = 0; i < points.size(); i++)
 		points[i] -= centroid;
 
+#ifdef TIMING_CPU
+	auto t2 = Clock::Tick();
+	std::cout << "CPU IMPLEMENTATION TIME: Centering: " << Clock::FormatTime(t2 - t0) << std::endl;
+#endif
+
 	auto covarianceMatrix = ComputeCovarianceMatrix(points);
+
+#ifdef TIMING_CPU
+	auto t3 = Clock::Tick();
+	std::cout << "CPU IMPLEMENTATION TIME: Covariance: " << Clock::FormatTime(t3 - t2) << std::endl;
+#endif
 
 	auto eigenValues = ComputeEigenValues(covarianceMatrix);
 	auto eigenVecs = ComputeEigenVectors(covarianceMatrix, eigenValues);
 
+#ifdef TIMING_CPU
+	auto t4 = Clock::Tick();
+	std::cout << "CPU IMPLEMENTATION TIME: Eigens: " << Clock::FormatTime(t4 - t3) << std::endl;
+#endif
 	// Original eigenvector / eigenvalue computation
-	double matrix[3][3];
+	//double matrix[3][3];
 
-	matrix[0][0] = covarianceMatrix[0][0];
-	matrix[0][1] = covarianceMatrix[0][1];
-	matrix[0][2] = covarianceMatrix[0][2];
-	matrix[1][0] = covarianceMatrix[1][0];
-	matrix[1][1] = covarianceMatrix[1][1];
-	matrix[1][2] = covarianceMatrix[1][2];
-	matrix[2][0] = covarianceMatrix[2][0];
-	matrix[2][1] = covarianceMatrix[2][1];
-	matrix[2][2] = covarianceMatrix[2][2];
+	//matrix[0][0] = covarianceMatrix[0][0];
+	//matrix[0][1] = covarianceMatrix[0][1];
+	//matrix[0][2] = covarianceMatrix[0][2];
+	//matrix[1][0] = covarianceMatrix[1][0];
+	//matrix[1][1] = covarianceMatrix[1][1];
+	//matrix[1][2] = covarianceMatrix[1][2];
+	//matrix[2][0] = covarianceMatrix[2][0];
+	//matrix[2][1] = covarianceMatrix[2][1];
+	//matrix[2][2] = covarianceMatrix[2][2];
 
-	double eigenVectors[3][3];
-	double values[3];
+	//double eigenVectors[3][3];
+	//double values[3];
 
-	eigen_decomposition(matrix, eigenVectors, values);
-	
+	//eigen_decomposition(matrix, eigenVectors, values);
+	//
 	//auto eigenVector1 = glm::vec3(eigenVectors[0][0], eigenVectors[1][0], eigenVectors[2][0]);
 	//auto eigenVector2 = glm::vec3(eigenVectors[0][1], eigenVectors[1][1], eigenVectors[2][1]);
 	//auto eigenVector3 = glm::cross(eigenVector1, eigenVector2);
@@ -109,6 +128,11 @@ OOBB Cpu::CreateOOBB(std::vector<glm::vec3> & points)
 			max.z = projectedPoint.z;
 	}
 
+#ifdef TIMING_CPU
+	auto t5 = Clock::Tick();
+	std::cout << "CPU IMPLEMENTATION TIME: Projecting: " << Clock::FormatTime(t5 - t4) << std::endl;
+#endif
+
 	// Finding Min and Max
 
 	auto result = OOBB();
@@ -134,8 +158,11 @@ OOBB Cpu::CreateOOBB(std::vector<glm::vec3> & points)
 	fout << "-----" << std::endl;
 	fout.close();
 
+#ifdef TIMING_CPU
 	auto t1 = Clock::Tick();
 	std::cout << "CPU IMPLEMENTATION TIME: Total time: " << Clock::FormatTime(t1 - t0) << std::endl;
+	std::cout << "#### PCA CPU IMPLEMENTATION TIMING ENDING ####" << std::endl;
+#endif
 
 	return result;
 }

@@ -80,9 +80,9 @@ vector<glm::vec3> Scene::buildBoundingBox(glm::vec3 center, glm::vec3 axes[], fl
 
 void runCL(std::vector<glm::vec3> points)
 {
-	auto acc = Accelerator();
+	Accelerator acc;
 	OOBB oobb;
-	for (auto i = 0; i < 0; i++) {
+	for (auto i = 0; i < 1; i++) {
 		cout << "Run " << i + 1 << ": " << std::endl;
 		oobb = acc.mainRun(points, 256);
 	}
@@ -95,6 +95,8 @@ void runCL(std::vector<glm::vec3> points)
 
 void Scene::prepareScene(std::vector<glm::vec3>& pointCloudVertices)
 {
+	runCL(pointCloudVertices);
+
 	auto cpu = Cpu();
 
 	glUseProgram(_program);
@@ -103,8 +105,8 @@ void Scene::prepareScene(std::vector<glm::vec3>& pointCloudVertices)
 	glBindBuffer(GL_ARRAY_BUFFER, _pointsVbo);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3)*pointCloudVertices.size(), &pointCloudVertices[0], GL_STATIC_DRAW);
 
-	std::thread first(runCL, pointCloudVertices);
-	first.detach();
+	//std::thread first(runCL, pointCloudVertices);
+	//first.detach();
 
 	auto polyhedron = Polyhedron::ConvexHull(&pointCloudVertices[0], pointCloudVertices.size());
 	std::vector<int> indices;
@@ -204,6 +206,7 @@ void Scene::init() {
 	glUseProgram(0);
 
 	loadModel("bunny.data", 10);
+
 }
 
 glm::vec3 Scene::colorFromRgb(uint8_t r, uint8_t g, uint8_t b) const
