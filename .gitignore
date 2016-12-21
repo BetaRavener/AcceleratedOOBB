@@ -1,6 +1,7 @@
 # Compiled objects
 */Debug/*
 */Release/*
+pack/*
 
 # Unncessary project files
 *.db
