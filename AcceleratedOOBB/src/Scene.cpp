@@ -87,13 +87,12 @@ vector<glm::vec3> Scene::buildBoundingBox(glm::vec3 center, glm::vec3 axes[], fl
 	return vertices;
 }
 
-void runCL(std::vector<glm::vec3> points)
+void runCL(std::vector<glm::vec3>& points, Polyhedron &polyhedron)
 {
 	std::cout << "\n\n\n### BENCHMARKING ###" << std::endl;
 	auto acc = Accelerator();
 	OOBB oobb;
 	OBB obb;
-	auto polyhedron = Polyhedron::ConvexHull(&points[0], points.size());
 
 	for (auto i = 0; i < EXPERIMENTS_COUNT; i++) {
 		cout << "Run " << i + 1 << ": " << std::endl;
@@ -104,12 +103,11 @@ void runCL(std::vector<glm::vec3> points)
 	std::cout << "Accelerated results:\nPCA OBB:\n" << oobb << "\nPaper OBB:\n" << obb << std::endl;
 }
 
-void Scene::prepareScene(std::vector<glm::vec3>& pointCloudVertices)
+bool Scene::prepareScene(std::vector<glm::vec3>& pointCloudVertices)
 {
 	Helpers::clearConsole();
 	std::cout << "### LOADING NEW MODEL ###" << std::endl;
-
-
+	
 	auto cpu = Cpu();
 
 	glUseProgram(_program);
@@ -118,7 +116,17 @@ void Scene::prepareScene(std::vector<glm::vec3>& pointCloudVertices)
 	glBindBuffer(GL_ARRAY_BUFFER, _pointsVbo);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3)*pointCloudVertices.size(), &pointCloudVertices[0], GL_STATIC_DRAW);
 
-	auto polyhedron = Polyhedron::ConvexHull(&pointCloudVertices[0], pointCloudVertices.size());
+	Polyhedron polyhedron;
+	try {
+		polyhedron = Polyhedron::ConvexHull(&pointCloudVertices[0], pointCloudVertices.size());
+	}
+	catch(std::exception e){
+		return false;
+	}
+
+	if (polyhedron.v.size() == 0 || polyhedron.f.size() == 0)
+		return false;
+
 	std::vector<int> indices;
 	for (auto face : polyhedron.f)
 		indices.insert(std::end(indices), std::begin(face.v), std::end(face.v));
@@ -153,7 +161,8 @@ void Scene::prepareScene(std::vector<glm::vec3>& pointCloudVertices)
 	updateViewMatrix();
 	_pointCloudSize = pointCloudVertices.size();
 
-	runCL(pointCloudVertices);
+	runCL(pointCloudVertices, polyhedron);
+	return true;
 }
 
 std::vector<glm::vec3> Scene::loadModel(std::string fileName, float scale)
@@ -221,7 +230,6 @@ void Scene::init() {
 	glUseProgram(0);
 
 	loadModel("bunny.data", 10);
-
 }
 
 glm::vec3 Scene::colorFromRgb(uint8_t r, uint8_t g, uint8_t b) const
@@ -356,23 +364,43 @@ void Scene::onKeyPress(SDL_Keycode key, Uint16 mod){
 			loadModel("budha.data", 10);
 			break;
 		case SDLK_4: {
-			auto pointCloudVertices = generator.CreatePointCloudBox(50000);
-			prepareScene(pointCloudVertices);
+			while (true) {
+				auto pointCloudVertices = generator.CreatePointCloudBox(50000);
+				if (prepareScene(pointCloudVertices))
+					break;
+			}
 			break;
 		}
 		case SDLK_5: {
-			auto pointCloudVertices = generator.CreatePointCloudBox(500000);
-			prepareScene(pointCloudVertices);
+			while (true) {
+				auto pointCloudVertices = generator.CreatePointCloudBox(500000);
+				if (prepareScene(pointCloudVertices))
+					break;
+			}
 			break;
 		}
 		case SDLK_6: {
-			auto pointCloudVertices = generator.CreatePointCloudBall(50000);
-			prepareScene(pointCloudVertices);
+			while (true) {
+				auto pointCloudVertices = generator.CreatePointCloudBall(50000);
+				if (prepareScene(pointCloudVertices))
+					break;
+			}
 			break;
 		}
 		case SDLK_7: {
-			auto pointCloudVertices = generator.CreatePointCloudBall(500000);
-			prepareScene(pointCloudVertices);
+			while (true) {
+				auto pointCloudVertices = generator.CreatePointCloudBall(500000);
+				if (prepareScene(pointCloudVertices))
+					break;
+			}
+			break;
+		}
+		case SDLK_i: {
+			SDL_version ver;
+			SDL_GetVersion(&ver);
+			std::cout << "SDL version: " << static_cast<int>(ver.major) << "." << static_cast<int>(ver.minor) 
+					  << "." << static_cast<int>(ver.patch) << std::endl;
+			std::cout << "GLEW version: " << glewGetString(GLEW_VERSION);
 			break;
 		}
 		default: break;

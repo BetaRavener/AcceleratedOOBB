@@ -9,6 +9,8 @@
 #include <vector>
 #include "OBB.h"
 
+class Polyhedron;
+
 class Scene: public BaseApp{
 public:
 	Scene();
@@ -39,8 +41,7 @@ protected:
 	void onMousePress(Uint8 button, int x, int y) override;
 	void onMouseRelease(Uint8 button, int x, int y) override;
 private:
-	
-	void prepareScene(std::vector<glm::vec3> &pointCloudVertices);
+	bool prepareScene(std::vector<glm::vec3> &pointCloudVertices);
 	std::vector<glm::vec3> loadModel(std::string fileName, float scale);
 	static std::vector<glm::vec3> buildBoundingBoxPaper(const OBB& obb);
 	static std::vector<glm::vec3> buildBoundingBox(glm::vec3 center, glm::vec3 axes[], float minimums[], float maximums[]);

@@ -149,7 +149,6 @@
     <None Include="Kernels\covariance_reduce.cl" />
     <None Include="Kernels\covariance_mat.cl" />
     <None Include="Kernels\eigenvector.cl" />
-    <None Include="Kernels\matrix_add.cl" />
     <None Include="Kernels\points_sum.cl" />
     <None Include="Kernels\projection_mat.cl" />
     <None Include="Kernels\sidepodal.cl" />

@@ -83,9 +83,6 @@
     <None Include="Shaders\vert.shader">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="Kernels\matrix_add.cl">
-      <Filter>Kernels</Filter>
-    </None>
     <None Include="Kernels\covariance_mat.cl">
       <Filter>Kernels</Filter>
     </None>

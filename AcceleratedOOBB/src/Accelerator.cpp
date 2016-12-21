@@ -16,7 +16,7 @@
 
 #define SELECTED_DEVICE_TYPE CL_DEVICE_TYPE_GPU
 
-//#define TIMING_GPU
+#define TIMING_GPU
 #define TIMING_CPU
 #ifdef TIMING_GPU
 #define PROFILE_FLAG CL_QUEUE_PROFILING_ENABLE
@@ -669,4 +669,3 @@ std::vector<std::vector<int>> Accelerator::sidepodals(std::vector<glm::vec3ext> 
 
 	return compatibleEdges;
 }
-

@@ -1,7 +1,6 @@
 // The kernel should be run with local group size of at least 16x16 for correct
 // coalescing access pattern. The group size must be power of 2 and at least 4.
 __kernel void sidepodal(__global float4 *normals, __global uchar *result, __local float4 *local_mem, int size)
-//__kernel void sidepodal(__global float4 *normals, __global float4 *result, __local float4 *local_mem, int size)
 {
 	int g_x = (int)get_global_id(0);
 	int g_y = (int)get_global_id(1);
