@@ -44,11 +44,6 @@ __kernel void sidepodal(__global float4 *normals, __global uchar *result, __loca
 	float4 f2a = local_mem[l_x * 2];
 	float4 f2b = local_mem[(l_x * 2) + 1];
 
-	/*result[0 + (g_x + g_y * size)*4] = f1a;
-	result[1 + (g_x + g_y * size)*4] = f1b;
-	result[2 + (g_x + g_y * size)*4] = f2a;
-	result[3 + (g_x + g_y * size)*4] = f2b;*/
-
 	float4 f1a_f1b = f1a - f1b;
 	float4 f2a_f2b = f2a - f2b;
 	float a = dot(f1b, f2b);
